@@ -10,7 +10,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/joho/godotenv"
+
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/config"
+	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/database"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/httpserver"
 )
 
@@ -19,9 +22,28 @@ func main() {
 		slog.NewJSONHandler(os.Stdout, nil),
 	)
 
+	if err := godotenv.Load(); err != nil {
+		logger.Info(".env file not found, using environment variables")
+	}
+
 	cfg := config.Load()
 
-	api := httpserver.New(logger)
+	db, err := database.NewPostgresPool(
+		context.Background(),
+		cfg.DatabaseURL,
+	)
+	if err != nil {
+		logger.Error(
+			"failed to connect to PostgreSQL",
+			"error", err,
+		)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	logger.Info("connected to PostgreSQL")
+
+	api := httpserver.New(logger, db)
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddress,

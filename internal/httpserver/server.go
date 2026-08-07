@@ -5,19 +5,22 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Server struct {
 	logger *slog.Logger
 	router *gin.Engine
+	db     *pgxpool.Pool
 }
 
-func New(logger *slog.Logger) *Server {
+func New(logger *slog.Logger, db *pgxpool.Pool) *Server {
 	router := gin.New()
 
 	server := &Server{
 		logger: logger,
 		router: router,
+		db:     db,
 	}
 
 	server.registerMiddleware()
