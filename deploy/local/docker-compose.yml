@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: maxpetrikov-postgres
+    environment:
+      POSTGRES_DB: maxpetrikov
+      POSTGRES_USER: max
+      POSTGRES_PASSWORD: "123"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U max -d maxpetrikov"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  
+  rabbit_mq:
+    image: rabbitmq:4.3.4-management
+    container_name: maxpetrikov-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: max
+      RABBITMQ_DEFAULT_PASS: "123"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
