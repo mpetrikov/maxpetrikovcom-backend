@@ -13,8 +13,9 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/config"
-	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/database"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/httpserver"
+	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/infra/postgres"
+	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/auth"
 )
 
 func main() {
@@ -28,7 +29,7 @@ func main() {
 
 	cfg := config.Load()
 
-	db, err := database.NewPostgresPool(
+	db, err := postgres.NewPostgresPool(
 		context.Background(),
 		cfg.DatabaseURL,
 	)
@@ -43,7 +44,11 @@ func main() {
 
 	logger.Info("connected to PostgreSQL")
 
-	api := httpserver.New(logger, db)
+	userRepository := postgres.NewUserRepository(db)
+	authService := auth.NewService(userRepository)
+	authHandler := httpserver.NewAuthHandler(authService)
+
+	api := httpserver.New(logger, db, authHandler)
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddress,

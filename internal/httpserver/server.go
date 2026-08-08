@@ -9,18 +9,20 @@ import (
 )
 
 type Server struct {
-	logger *slog.Logger
-	router *gin.Engine
-	db     *pgxpool.Pool
+	logger      *slog.Logger
+	router      *gin.Engine
+	db          *pgxpool.Pool
+	authHandler *AuthHandler
 }
 
-func New(logger *slog.Logger, db *pgxpool.Pool) *Server {
+func New(logger *slog.Logger, db *pgxpool.Pool, authHandler *AuthHandler) *Server {
 	router := gin.New()
 
 	server := &Server{
-		logger: logger,
-		router: router,
-		db:     db,
+		logger:      logger,
+		router:      router,
+		db:          db,
+		authHandler: authHandler,
 	}
 
 	server.registerMiddleware()
@@ -40,4 +42,9 @@ func (s *Server) registerMiddleware() {
 
 func (s *Server) registerRoutes() {
 	s.router.GET("/health", s.health)
+
+	auth := s.router.Group("/auth")
+	{
+		auth.POST("/register", s.authHandler.Register)
+	}
 }
