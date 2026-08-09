@@ -1,10 +1,12 @@
 package httpserver
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/user"
 	authservice "github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/auth"
 )
 
@@ -19,12 +21,14 @@ type registerResponse struct {
 }
 
 type AuthHandler struct {
-	auth *authservice.Service
+	auth   *authservice.Service
+	google *authservice.GoogleOAuth
 }
 
-func NewAuthHandler(auth *authservice.Service) *AuthHandler {
+func NewAuthHandler(auth *authservice.Service, google *authservice.GoogleOAuth) *AuthHandler {
 	return &AuthHandler{
-		auth: auth,
+		auth:   auth,
+		google: google,
 	}
 }
 
@@ -45,6 +49,14 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		request.Password,
 	)
 	if err != nil {
+		if errors.Is(err, user.ErrEmailAlreadyExists) {
+			c.JSON(
+				http.StatusConflict,
+				gin.H{"error": "email already registered"},
+			)
+			return
+		}
+
 		c.JSON(
 			http.StatusInternalServerError,
 			gin.H{"error": "failed to register user"},
@@ -58,5 +70,31 @@ func (h *AuthHandler) Register(c *gin.Context) {
 			ID:    created.ID.String(),
 			Email: created.Email,
 		},
+	)
+}
+
+func (h *AuthHandler) GoogleLogin(c *gin.Context) {
+	state, err := authservice.GenerateOAuthState()
+	if err != nil {
+		c.JSON(
+			http.StatusInternalServerError,
+			gin.H{"error": "failed to start OAuth flow"},
+		)
+		return
+	}
+
+	c.SetCookie(
+		"oauth_state",
+		state,
+		600,
+		"/",
+		"",
+		false, //local HTTP
+		true,  // HttpOnly
+	)
+
+	c.Redirect(
+		http.StatusTemporaryRedirect,
+		h.google.AuthorizationURL(state),
 	)
 }

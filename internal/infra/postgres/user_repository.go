@@ -2,8 +2,10 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/role"
@@ -64,6 +66,15 @@ func (r *UserRepository) Create(
 		&created.UpdatedAt,
 	)
 	if err != nil {
+		var pgErr *pgconn.PgError
+
+		if errors.As(err, &pgErr) &&
+			pgErr.Code == pgUniqueViolation &&
+			pgErr.ConstraintName == usersEmailUniqueConstraint {
+
+			return user.User{}, user.ErrEmailAlreadyExists
+		}
+
 		return user.User{}, fmt.Errorf("create user: %w", err)
 	}
 

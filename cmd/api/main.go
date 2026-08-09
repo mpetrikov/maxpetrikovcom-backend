@@ -44,9 +44,15 @@ func main() {
 
 	logger.Info("connected to PostgreSQL")
 
+	googleOAuth := auth.NewGoogleOAuth(
+		cfg.GoogleClientID,
+		cfg.GoogleClientSecret,
+		cfg.GoogleRedirectURL,
+	)
+
 	userRepository := postgres.NewUserRepository(db)
 	authService := auth.NewService(userRepository)
-	authHandler := httpserver.NewAuthHandler(authService)
+	authHandler := httpserver.NewAuthHandler(authService, googleOAuth)
 
 	api := httpserver.New(logger, db, authHandler)
 
