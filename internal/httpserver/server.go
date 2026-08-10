@@ -47,6 +47,6 @@ func (s *Server) registerRoutes() {
 	{
 		auth.POST("/register", s.authHandler.Register)
 		auth.GET("/google", s.authHandler.GoogleLogin)
-		// auth.GET("/google/callback", s.authHandler.GoogleCallback)
+		auth.GET("/google/callback", s.authHandler.GoogleCallback)
 	}
 }

@@ -98,3 +98,66 @@ func (h *AuthHandler) GoogleLogin(c *gin.Context) {
 		h.google.AuthorizationURL(state),
 	)
 }
+
+func (h *AuthHandler) GoogleCallback(c *gin.Context) {
+	queryState := c.Query("state")
+
+	cookieState, err := c.Cookie("oauth_state")
+	if err != nil {
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{"error": "oauth state cookie not found"},
+		)
+		return
+	}
+
+	if queryState == "" || queryState != cookieState {
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{"error": "invalid oauth state"},
+		)
+		return
+	}
+
+	code := c.Query("code")
+	if code == "" {
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{"error": "oauth code not found"},
+		)
+		return
+	}
+
+	// State is needed only for one OAuth flow
+	c.SetCookie(
+		"oauth_state",
+		"",
+		-1,
+		"/",
+		"",
+		false,
+		true,
+	)
+
+	googleUser, err := h.google.GetUser(
+		c.Request.Context(),
+		code,
+	)
+	if err != nil {
+		c.JSON(
+			http.StatusBadGateway,
+			gin.H{"error": "failed to authenticate with Google"},
+		)
+		return
+	}
+
+	c.JSON(
+		http.StatusOK,
+		gin.H{
+			"id":             googleUser.ID,
+			"email":          googleUser.Email,
+			"email_verified": googleUser.EmailVerified,
+			"name":           googleUser.Name,
+		},
+	)
+}
