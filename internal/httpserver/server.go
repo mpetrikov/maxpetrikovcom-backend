@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	authservice "github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/auth"
 )
 
 type Server struct {
@@ -13,9 +14,14 @@ type Server struct {
 	router      *gin.Engine
 	db          *pgxpool.Pool
 	authHandler *AuthHandler
+	tokens      *authservice.TokenService
 }
 
-func New(logger *slog.Logger, db *pgxpool.Pool, authHandler *AuthHandler) *Server {
+func New(logger *slog.Logger,
+	db *pgxpool.Pool,
+	authHandler *AuthHandler,
+	tokens *authservice.TokenService,
+) *Server {
 	router := gin.New()
 
 	server := &Server{
@@ -23,6 +29,7 @@ func New(logger *slog.Logger, db *pgxpool.Pool, authHandler *AuthHandler) *Serve
 		router:      router,
 		db:          db,
 		authHandler: authHandler,
+		tokens:      tokens,
 	}
 
 	server.registerMiddleware()
@@ -48,5 +55,11 @@ func (s *Server) registerRoutes() {
 		auth.POST("/register", s.authHandler.Register)
 		auth.GET("/google", s.authHandler.GoogleLogin)
 		auth.GET("/google/callback", s.authHandler.GoogleCallback)
+	}
+
+	protected := s.router.Group("/")
+	protected.Use(authMiddleware(s.tokens))
+	{
+		protected.GET("/me", s.me)
 	}
 }

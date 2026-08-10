@@ -60,3 +60,34 @@ func (s *TokenService) GenerateAccessToken(
 
 	return signedToken, nil
 }
+
+func (s *TokenService) ParseAccessToken(
+	tokenString string,
+) (*AccessTokenClaims, error) {
+	token, err := jwt.ParseWithClaims(
+		tokenString,
+		&AccessTokenClaims{},
+		func(token *jwt.Token) (any, error) {
+			if token.Method != jwt.SigningMethodHS256 {
+				return nil, fmt.Errorf(
+					"unexpected signing method: %s",
+					token.Method.Alg(),
+				)
+			}
+
+			return s.secret, nil
+		},
+		jwt.WithIssuer(s.issuer),
+		jwt.WithExpirationRequired(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("parse access token: %w", err)
+	}
+
+	claims, ok := token.Claims.(*AccessTokenClaims)
+	if !ok || !token.Valid {
+		return nil, fmt.Errorf("invalid access token")
+	}
+
+	return claims, nil
+}

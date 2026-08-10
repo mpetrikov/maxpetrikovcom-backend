@@ -69,7 +69,7 @@ func main() {
 
 	authHandler := httpserver.NewAuthHandler(authService, googleOAuth, tokenService)
 
-	api := httpserver.New(logger, db, authHandler)
+	api := httpserver.New(logger, db, authHandler, tokenService)
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddress,
