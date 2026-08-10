@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"time"
 )
@@ -13,10 +14,25 @@ type Config struct {
 	GoogleClientID     string
 	GoogleClientSecret string
 	GoogleRedirectURL  string
-	ShutdownTimeout    time.Duration
+
+	JWTSecret    string
+	JWTIssuer    string
+	JWTAccessTTL time.Duration
+
+	ShutdownTimeout time.Duration
 }
 
-func Load() Config {
+func Load() (Config, error) {
+	jwtAccessTTL, err := time.ParseDuration(
+		getEnv("JWT_ACCESS_TTL", "15m"),
+	)
+	if err != nil {
+		return Config{}, fmt.Errorf(
+			"parse JWT_ACCESS_TTL: %w",
+			err,
+		)
+	}
+
 	return Config{
 		Environment:        getEnv("APP_ENV", "local"),
 		HTTPAddress:        getEnv("HTTP_ADDRESS", ":8080"),
@@ -24,9 +40,14 @@ func Load() Config {
 		RabbitMQURL:        getEnv("RABBITMQ_URL", ""),
 		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
-		GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", ""),
-		ShutdownTimeout:    10 * time.Second,
-	}
+
+		GoogleRedirectURL: getEnv("GOOGLE_REDIRECT_URL", ""),
+		JWTSecret:         getEnv("JWT_SECRET", ""),
+		JWTIssuer:         getEnv("JWT_ISSUER", "maxpetrikov.com"),
+		JWTAccessTTL:      jwtAccessTTL,
+
+		ShutdownTimeout: 10 * time.Second,
+	}, nil
 }
 
 func getEnv(key string, fallback string) string {

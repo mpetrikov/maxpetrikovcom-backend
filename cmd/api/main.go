@@ -27,7 +27,14 @@ func main() {
 		logger.Info(".env file not found, using environment variables")
 	}
 
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		logger.Error(
+			"failed to load configuration",
+			"error", err,
+		)
+		os.Exit(1)
+	}
 
 	db, err := postgres.NewPostgresPool(
 		context.Background(),
@@ -44,17 +51,23 @@ func main() {
 
 	logger.Info("connected to PostgreSQL")
 
+	userRepository := postgres.NewUserRepository(db)
+	userIdentityRepository := postgres.NewUserIdentityRepository(db)
+	authService := auth.NewService(userRepository, userIdentityRepository)
+
 	googleOAuth := auth.NewGoogleOAuth(
 		cfg.GoogleClientID,
 		cfg.GoogleClientSecret,
 		cfg.GoogleRedirectURL,
 	)
 
-	userRepository := postgres.NewUserRepository(db)
-	userIdentityRepository := postgres.NewUserIdentityRepository(db)
+	tokenService := auth.NewTokenService(
+		cfg.JWTSecret,
+		cfg.JWTIssuer,
+		cfg.JWTAccessTTL,
+	)
 
-	authService := auth.NewService(userRepository, userIdentityRepository)
-	authHandler := httpserver.NewAuthHandler(authService, googleOAuth)
+	authHandler := httpserver.NewAuthHandler(authService, googleOAuth, tokenService)
 
 	api := httpserver.New(logger, db, authHandler)
 

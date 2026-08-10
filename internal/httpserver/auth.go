@@ -23,12 +23,16 @@ type registerResponse struct {
 type AuthHandler struct {
 	auth   *authservice.Service
 	google *authservice.GoogleOAuth
+	tokens *authservice.TokenService
 }
 
-func NewAuthHandler(auth *authservice.Service, google *authservice.GoogleOAuth) *AuthHandler {
+func NewAuthHandler(auth *authservice.Service,
+	google *authservice.GoogleOAuth,
+	tokens *authservice.TokenService) *AuthHandler {
 	return &AuthHandler{
 		auth:   auth,
 		google: google,
+		tokens: tokens,
 	}
 }
 
@@ -163,11 +167,22 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		return
 	}
 
+	accessToken, err := h.tokens.GenerateAccessToken(
+		authenticatedUser,
+	)
+	if err != nil {
+		c.JSON(
+			http.StatusInternalServerError,
+			gin.H{"error": "failed to create access token"},
+		)
+		return
+	}
+
 	c.JSON(
 		http.StatusOK,
 		gin.H{
-			"id":    authenticatedUser.ID,
-			"email": authenticatedUser.Email,
+			"access_token": accessToken,
+			"token_type":   "Bearer",
 		},
 	)
 }
