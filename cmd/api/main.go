@@ -51,7 +51,9 @@ func main() {
 	)
 
 	userRepository := postgres.NewUserRepository(db)
-	authService := auth.NewService(userRepository)
+	userIdentityRepository := postgres.NewUserIdentityRepository(db)
+
+	authService := auth.NewService(userRepository, userIdentityRepository)
 	authHandler := httpserver.NewAuthHandler(authService, googleOAuth)
 
 	api := httpserver.New(logger, db, authHandler)

@@ -128,7 +128,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	// State is needed only for one OAuth flow
+	// clear state, it is needed only for one OAuth flow
 	c.SetCookie(
 		"oauth_state",
 		"",
@@ -151,13 +151,23 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		return
 	}
 
+	authenticatedUser, err := h.auth.LoginWithGoogle(
+		c.Request.Context(),
+		googleUser,
+	)
+	if err != nil {
+		c.JSON(
+			http.StatusInternalServerError,
+			gin.H{"error": "failed to authenticate user"},
+		)
+		return
+	}
+
 	c.JSON(
 		http.StatusOK,
 		gin.H{
-			"id":             googleUser.ID,
-			"email":          googleUser.Email,
-			"email_verified": googleUser.EmailVerified,
-			"name":           googleUser.Name,
+			"id":    authenticatedUser.ID,
+			"email": authenticatedUser.Email,
 		},
 	)
 }

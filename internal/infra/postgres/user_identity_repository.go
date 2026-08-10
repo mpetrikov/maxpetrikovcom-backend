@@ -2,10 +2,14 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/role"
+	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/user"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/useridentity"
 )
 
@@ -21,13 +25,111 @@ func NewUserIdentityRepository(
 	}
 }
 
-func (r *UserIdentityRepository) Create(
+func (r *UserIdentityRepository) FindUserByProvider(
 	ctx context.Context,
-	input useridentity.Identity,
-) (useridentity.Identity, error) {
-	var created useridentity.Identity
+	provider useridentity.Provider,
+	providerUserID string,
+) (user.User, error) {
+	var result user.User
 
 	err := r.db.QueryRow(
+		ctx,
+		`
+		SELECT
+			u.id,
+			u.email,
+			u.password_hash,
+			u.role_id,
+			u.created_at,
+			u.updated_at
+		FROM user_identities ui
+		JOIN users u ON u.id = ui.user_id
+		WHERE ui.provider = $1
+		  AND ui.provider_user_id = $2
+		`,
+		provider,
+		providerUserID,
+	).Scan(
+		&result.ID,
+		&result.Email,
+		&result.PasswordHash,
+		&result.RoleID,
+		&result.CreatedAt,
+		&result.UpdatedAt,
+	)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return user.User{}, useridentity.ErrNotFound
+	}
+
+	if err != nil {
+		return user.User{}, fmt.Errorf(
+			"find user by identity: %w",
+			err,
+		)
+	}
+
+	return result, nil
+}
+
+func (r *UserIdentityRepository) CreateUserWithIdentity(
+	ctx context.Context,
+	inputUser user.User,
+	inputIdentity useridentity.Identity,
+	roleName role.Name,
+) (user.User, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return user.User{}, fmt.Errorf("begin transaction: %w", err)
+	}
+
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	var created user.User
+
+	err = tx.QueryRow(
+		ctx,
+		`
+		INSERT INTO users (
+			id,
+			email,
+			password_hash,
+			role_id
+		)
+		SELECT
+			$1,
+			$2,
+			$3,
+			r.id
+		FROM roles r
+		WHERE r.name = $4
+		RETURNING
+			id,
+			email,
+			password_hash,
+			role_id,
+			created_at,
+			updated_at
+		`,
+		inputUser.ID,
+		inputUser.Email,
+		inputUser.PasswordHash,
+		roleName,
+	).Scan(
+		&created.ID,
+		&created.Email,
+		&created.PasswordHash,
+		&created.RoleID,
+		&created.CreatedAt,
+		&created.UpdatedAt,
+	)
+	if err != nil {
+		return user.User{}, fmt.Errorf("create oauth user: %w", err)
+	}
+
+	_, err = tx.Exec(
 		ctx,
 		`
 		INSERT INTO user_identities (
@@ -38,70 +140,23 @@ func (r *UserIdentityRepository) Create(
 			email
 		)
 		VALUES ($1, $2, $3, $4, $5)
-		RETURNING
-			id,
-			user_id,
-			provider,
-			provider_user_id,
-			email,
-			created_at
 		`,
-		input.ID,
-		input.UserID,
-		input.Provider,
-		input.ProviderUserID,
-		input.Email,
-	).Scan(
-		&created.ID,
-		&created.UserID,
-		&created.Provider,
-		&created.ProviderUserID,
-		&created.Email,
-		&created.CreatedAt,
+		inputIdentity.ID,
+		created.ID,
+		inputIdentity.Provider,
+		inputIdentity.ProviderUserID,
+		inputIdentity.Email,
 	)
 	if err != nil {
-		return useridentity.Identity{},
-			fmt.Errorf("create user identity: %w", err)
+		return user.User{}, fmt.Errorf(
+			"create user identity: %w",
+			err,
+		)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return user.User{}, fmt.Errorf("commit transaction: %w", err)
 	}
 
 	return created, nil
-}
-
-func (r *UserIdentityRepository) FindByProvider(
-	ctx context.Context,
-	provider useridentity.Provider,
-	providerUserID string,
-) (useridentity.Identity, error) {
-	var result useridentity.Identity
-
-	err := r.db.QueryRow(
-		ctx,
-		`
-		SELECT
-			id,
-			user_id,
-			provider,
-			provider_user_id,
-			email,
-			created_at
-		FROM user_identities
-		WHERE provider = $1
-		  AND provider_user_id = $2
-		`,
-		provider,
-		providerUserID,
-	).Scan(
-		&result.ID,
-		&result.UserID,
-		&result.Provider,
-		&result.ProviderUserID,
-		&result.Email,
-		&result.CreatedAt,
-	)
-	if err != nil {
-		return useridentity.Identity{},
-			fmt.Errorf("find user identity: %w", err)
-	}
-
-	return result, nil
 }
