@@ -14,12 +14,14 @@ type Server struct {
 	router      *gin.Engine
 	db          *pgxpool.Pool
 	authHandler *AuthHandler
+	userHandler *UserHandler
 	tokens      *authservice.TokenService
 }
 
 func New(logger *slog.Logger,
 	db *pgxpool.Pool,
 	authHandler *AuthHandler,
+	userHandler *UserHandler,
 	tokens *authservice.TokenService,
 ) *Server {
 	router := gin.New()
@@ -29,6 +31,7 @@ func New(logger *slog.Logger,
 		router:      router,
 		db:          db,
 		authHandler: authHandler,
+		userHandler: userHandler,
 		tokens:      tokens,
 	}
 
@@ -60,6 +63,6 @@ func (s *Server) registerRoutes() {
 	protected := s.router.Group("/")
 	protected.Use(authMiddleware(s.tokens))
 	{
-		protected.GET("/me", s.me)
+		protected.GET("/me", s.userHandler.Me)
 	}
 }

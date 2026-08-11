@@ -16,6 +16,7 @@ import (
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/httpserver"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/infra/postgres"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/auth"
+	userservice "github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/user"
 )
 
 func main() {
@@ -52,6 +53,9 @@ func main() {
 	logger.Info("connected to PostgreSQL")
 
 	userRepository := postgres.NewUserRepository(db)
+	userService := userservice.NewService(userRepository)
+	userHandler := httpserver.NewUserHandler(userService)
+
 	userIdentityRepository := postgres.NewUserIdentityRepository(db)
 	authService := auth.NewService(userRepository, userIdentityRepository)
 
@@ -69,7 +73,12 @@ func main() {
 
 	authHandler := httpserver.NewAuthHandler(authService, googleOAuth, tokenService)
 
-	api := httpserver.New(logger, db, authHandler, tokenService)
+	api := httpserver.New(
+		logger,
+		db,
+		authHandler,
+		userHandler,
+		tokenService)
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddress,

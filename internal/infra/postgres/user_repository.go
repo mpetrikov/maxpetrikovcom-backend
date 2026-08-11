@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -112,6 +114,49 @@ func (r *UserRepository) FindByEmail(
 
 	if err != nil {
 		return user.User{}, fmt.Errorf("find user by email: %w", err)
+	}
+
+	return result, nil
+}
+
+func (r *UserRepository) FindByID(
+	ctx context.Context,
+	id uuid.UUID,
+) (user.User, error) {
+	var result user.User
+
+	err := r.db.QueryRow(
+		ctx,
+		`
+		SELECT
+			u.id,
+			u.email,
+			u.password_hash,
+			u.role_id,
+			r.name,
+			u.created_at,
+			u.updated_at
+		FROM users u
+		JOIN roles r ON r.id = u.role_id
+		WHERE u.id = $1
+		`,
+		id,
+	).Scan(
+		&result.ID,
+		&result.Email,
+		&result.PasswordHash,
+		&result.RoleID,
+		&result.Role,
+		&result.CreatedAt,
+		&result.UpdatedAt,
+	)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return user.User{}, user.ErrNotFound
+	}
+
+	if err != nil {
+		return user.User{}, fmt.Errorf("find user by id: %w", err)
 	}
 
 	return result, nil
