@@ -9,7 +9,10 @@ import (
 	authservice "github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/auth"
 )
 
-const userIDContextKey = "user_id"
+const (
+	userIDContextKey = "user_id"
+	roleContextKey   = "role"
+)
 
 func authMiddleware(
 	tokens *authservice.TokenService,
@@ -48,6 +51,7 @@ func authMiddleware(
 		}
 
 		c.Set(userIDContextKey, claims.Subject)
+		c.Set(roleContextKey, claims.Role)
 
 		c.Next()
 	}

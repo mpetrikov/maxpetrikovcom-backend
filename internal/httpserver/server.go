@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/role"
 	authservice "github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/auth"
 )
 
@@ -64,5 +65,11 @@ func (s *Server) registerRoutes() {
 	protected.Use(authMiddleware(s.tokens))
 	{
 		protected.GET("/me", s.userHandler.Me)
+
+		admin := protected.Group("/admin")
+		admin.Use(requireRole(role.Admin))
+		{
+			admin.GET("/test", adminTest)
+		}
 	}
 }

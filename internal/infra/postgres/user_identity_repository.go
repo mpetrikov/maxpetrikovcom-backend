@@ -40,10 +40,12 @@ func (r *UserIdentityRepository) FindUserByProvider(
 			u.email,
 			u.password_hash,
 			u.role_id,
+			r.name,
 			u.created_at,
 			u.updated_at
 		FROM user_identities ui
 		JOIN users u ON u.id = ui.user_id
+		JOIN roles r ON r.id = u.role_id
 		WHERE ui.provider = $1
 		  AND ui.provider_user_id = $2
 		`,
@@ -54,6 +56,7 @@ func (r *UserIdentityRepository) FindUserByProvider(
 		&result.Email,
 		&result.PasswordHash,
 		&result.RoleID,
+		&result.Role,
 		&result.CreatedAt,
 		&result.UpdatedAt,
 	)

@@ -6,6 +6,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
+	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/role"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/user"
 )
 
@@ -16,7 +17,7 @@ type TokenService struct {
 }
 
 type AccessTokenClaims struct {
-	RoleID int16 `json:"role_id"`
+	Role role.Name `json:"role"`
 
 	jwt.RegisteredClaims
 }
@@ -39,7 +40,7 @@ func (s *TokenService) GenerateAccessToken(
 	now := time.Now()
 
 	claims := AccessTokenClaims{
-		RoleID: currentUser.RoleID,
+		Role: currentUser.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   currentUser.ID.String(),
 			Issuer:    s.issuer,
