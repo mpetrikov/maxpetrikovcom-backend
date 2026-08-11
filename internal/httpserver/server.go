@@ -59,6 +59,9 @@ func (s *Server) registerRoutes() {
 		auth.POST("/register", s.authHandler.Register)
 		auth.GET("/google", s.authHandler.GoogleLogin)
 		auth.GET("/google/callback", s.authHandler.GoogleCallback)
+
+		auth.POST("/refresh", s.authHandler.Refresh)
+		auth.POST("/logout", s.authHandler.Logout)
 	}
 
 	protected := s.router.Group("/")

@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/refreshsession"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/user"
 	authservice "github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/auth"
 )
@@ -20,19 +21,25 @@ type registerResponse struct {
 	Email string `json:"email"`
 }
 
+type refreshRequest struct {
+	RefreshToken string `json:"refresh_token" binding:"required"`
+}
 type AuthHandler struct {
-	auth   *authservice.Service
-	google *authservice.GoogleOAuth
-	tokens *authservice.TokenService
+	auth          *authservice.Service
+	google        *authservice.GoogleOAuth
+	tokens        *authservice.TokenService
+	refreshTokens *authservice.RefreshTokenService
 }
 
 func NewAuthHandler(auth *authservice.Service,
 	google *authservice.GoogleOAuth,
-	tokens *authservice.TokenService) *AuthHandler {
+	tokens *authservice.TokenService,
+	refreshTokens *authservice.RefreshTokenService) *AuthHandler {
 	return &AuthHandler{
-		auth:   auth,
-		google: google,
-		tokens: tokens,
+		auth:          auth,
+		google:        google,
+		tokens:        tokens,
+		refreshTokens: refreshTokens,
 	}
 }
 
@@ -167,13 +174,14 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	accessToken, err := h.tokens.GenerateAccessToken(
+	tokenPair, err := h.refreshTokens.IssueTokenPair(
+		c.Request.Context(),
 		authenticatedUser,
 	)
 	if err != nil {
 		c.JSON(
 			http.StatusInternalServerError,
-			gin.H{"error": "failed to create access token"},
+			gin.H{"error": "failed to create session"},
 		)
 		return
 	}
@@ -181,8 +189,78 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	c.JSON(
 		http.StatusOK,
 		gin.H{
-			"access_token": accessToken,
-			"token_type":   "Bearer",
+			"access_token":  tokenPair.AccessToken,
+			"refresh_token": tokenPair.RefreshToken,
+			"token_type":    "Bearer",
 		},
 	)
+}
+
+func (h *AuthHandler) Refresh(c *gin.Context) {
+	var request refreshRequest
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{"error": "invalid request"},
+		)
+		return
+	}
+
+	tokenPair, err := h.refreshTokens.Refresh(
+		c.Request.Context(),
+		request.RefreshToken,
+	)
+	if err != nil {
+		if errors.Is(err, refreshsession.ErrNotFound) ||
+			errors.Is(err, refreshsession.ErrExpired) ||
+			errors.Is(err, refreshsession.ErrRevoked) {
+
+			c.JSON(
+				http.StatusUnauthorized,
+				gin.H{"error": "invalid refresh token"},
+			)
+			return
+		}
+
+		c.JSON(
+			http.StatusInternalServerError,
+			gin.H{"error": "failed to refresh session"},
+		)
+		return
+	}
+
+	c.JSON(
+		http.StatusOK,
+		gin.H{
+			"access_token":  tokenPair.AccessToken,
+			"refresh_token": tokenPair.RefreshToken,
+			"token_type":    "Bearer",
+		},
+	)
+}
+
+func (h *AuthHandler) Logout(c *gin.Context) {
+	var request refreshRequest
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{"error": "invalid request"},
+		)
+		return
+	}
+
+	if err := h.refreshTokens.Logout(
+		c.Request.Context(),
+		request.RefreshToken,
+	); err != nil {
+		c.JSON(
+			http.StatusInternalServerError,
+			gin.H{"error": "failed to logout"},
+		)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }

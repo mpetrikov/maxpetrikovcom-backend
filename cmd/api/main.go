@@ -71,7 +71,20 @@ func main() {
 		cfg.JWTAccessTTL,
 	)
 
-	authHandler := httpserver.NewAuthHandler(authService, googleOAuth, tokenService)
+	refreshSessionRepository := postgres.NewRefreshSessionRepository(db)
+	refreshTokenService := auth.NewRefreshTokenService(
+		refreshSessionRepository,
+		userRepository,
+		tokenService,
+		cfg.JWTRefreshTTL,
+	)
+
+	authHandler := httpserver.NewAuthHandler(
+		authService,
+		googleOAuth,
+		tokenService,
+		refreshTokenService,
+	)
 
 	api := httpserver.New(
 		logger,

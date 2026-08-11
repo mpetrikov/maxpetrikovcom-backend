@@ -15,9 +15,10 @@ type Config struct {
 	GoogleClientSecret string
 	GoogleRedirectURL  string
 
-	JWTSecret    string
-	JWTIssuer    string
-	JWTAccessTTL time.Duration
+	JWTSecret     string
+	JWTIssuer     string
+	JWTAccessTTL  time.Duration
+	JWTRefreshTTL time.Duration
 
 	ShutdownTimeout time.Duration
 }
@@ -29,6 +30,16 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf(
 			"parse JWT_ACCESS_TTL: %w",
+			err,
+		)
+	}
+
+	jwtRefreshTTL, err := time.ParseDuration(
+		getEnv("JWT_REFRESH_TTL", "720h"),
+	)
+	if err != nil {
+		return Config{}, fmt.Errorf(
+			"parse JWT_REFRESH_TTL: %w",
 			err,
 		)
 	}
@@ -45,6 +56,7 @@ func Load() (Config, error) {
 		JWTSecret:         getEnv("JWT_SECRET", ""),
 		JWTIssuer:         getEnv("JWT_ISSUER", "maxpetrikov.com"),
 		JWTAccessTTL:      jwtAccessTTL,
+		JWTRefreshTTL:     jwtRefreshTTL,
 
 		ShutdownTimeout: 10 * time.Second,
 	}, nil
