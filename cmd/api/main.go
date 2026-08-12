@@ -16,6 +16,7 @@ import (
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/httpserver"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/infra/postgres"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/auth"
+	labservice "github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/lab"
 	userservice "github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/user"
 )
 
@@ -86,12 +87,17 @@ func main() {
 		refreshTokenService,
 	)
 
+	labRepository := postgres.NewLabRepository(db)
+	labService := labservice.NewService(labRepository)
+	labHandler := httpserver.NewLabHandler(labService)
+
 	api := httpserver.New(
 		logger,
 		db,
 		authHandler,
 		userHandler,
-		tokenService)
+		tokenService,
+		labHandler)
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddress,

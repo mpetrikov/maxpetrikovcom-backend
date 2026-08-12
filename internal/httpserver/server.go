@@ -17,6 +17,7 @@ type Server struct {
 	authHandler *AuthHandler
 	userHandler *UserHandler
 	tokens      *authservice.TokenService
+	labHandler  *LabHandler
 }
 
 func New(logger *slog.Logger,
@@ -24,6 +25,7 @@ func New(logger *slog.Logger,
 	authHandler *AuthHandler,
 	userHandler *UserHandler,
 	tokens *authservice.TokenService,
+	labHandler *LabHandler,
 ) *Server {
 	router := gin.New()
 
@@ -34,6 +36,7 @@ func New(logger *slog.Logger,
 		authHandler: authHandler,
 		userHandler: userHandler,
 		tokens:      tokens,
+		labHandler:  labHandler,
 	}
 
 	server.registerMiddleware()
@@ -53,6 +56,8 @@ func (s *Server) registerMiddleware() {
 
 func (s *Server) registerRoutes() {
 	s.router.GET("/health", s.health)
+	s.router.GET("/labs", s.labHandler.List)
+	s.router.GET("/labs/:slug", s.labHandler.Get)
 
 	auth := s.router.Group("/auth")
 	{
@@ -73,6 +78,7 @@ func (s *Server) registerRoutes() {
 		admin.Use(requireRole(role.Admin))
 		{
 			admin.GET("/test", adminTest)
+			admin.POST("/labs", s.labHandler.Create)
 		}
 	}
 }
