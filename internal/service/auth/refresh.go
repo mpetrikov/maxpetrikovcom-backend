@@ -12,9 +12,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/contracts"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/refreshsession"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/user"
+	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/repository/contracts"
 )
 
 type RefreshTokenService struct {

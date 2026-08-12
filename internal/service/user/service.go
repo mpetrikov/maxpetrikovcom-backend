@@ -5,8 +5,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/contracts"
 	domainuser "github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/user"
+	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/repository/contracts"
 )
 
 type Service struct {

@@ -9,10 +9,10 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/contracts"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/role"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/user"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/useridentity"
+	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/repository/contracts"
 )
 
 type Service struct {
