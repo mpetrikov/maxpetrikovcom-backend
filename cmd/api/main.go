@@ -2,22 +2,13 @@ package main
 
 import (
 	"context"
-	"errors"
 	"log/slog"
-	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/joho/godotenv"
 
+	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/app"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/config"
-	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/httpserver"
-	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/infra/postgres"
-	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/auth"
-	labservice "github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/lab"
-	userservice "github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/user"
 )
 
 func main() {
@@ -38,122 +29,24 @@ func main() {
 		os.Exit(1)
 	}
 
-	db, err := postgres.NewPostgresPool(
+	application, err := app.New(
 		context.Background(),
-		cfg.DatabaseURL,
+		cfg,
+		logger,
 	)
 	if err != nil {
 		logger.Error(
-			"failed to connect to PostgreSQL",
+			"failed to initialize application",
 			"error", err,
 		)
 		os.Exit(1)
 	}
-	defer db.Close()
 
-	logger.Info("connected to PostgreSQL")
-
-	userRepository := postgres.NewUserRepository(db)
-	userService := userservice.NewService(userRepository)
-	userHandler := httpserver.NewUserHandler(userService)
-
-	userIdentityRepository := postgres.NewUserIdentityRepository(db)
-	authService := auth.NewService(userRepository, userIdentityRepository)
-
-	googleOAuth := auth.NewGoogleOAuth(
-		cfg.GoogleClientID,
-		cfg.GoogleClientSecret,
-		cfg.GoogleRedirectURL,
-	)
-
-	tokenService := auth.NewTokenService(
-		cfg.JWTSecret,
-		cfg.JWTIssuer,
-		cfg.JWTAccessTTL,
-	)
-
-	refreshSessionRepository := postgres.NewRefreshSessionRepository(db)
-	refreshTokenService := auth.NewRefreshTokenService(
-		refreshSessionRepository,
-		userRepository,
-		tokenService,
-		cfg.JWTRefreshTTL,
-	)
-
-	authHandler := httpserver.NewAuthHandler(
-		authService,
-		googleOAuth,
-		tokenService,
-		refreshTokenService,
-	)
-
-	labRepository := postgres.NewLabRepository(db)
-	labService := labservice.NewService(labRepository)
-	labHandler := httpserver.NewLabHandler(labService)
-
-	api := httpserver.New(
-		logger,
-		db,
-		authHandler,
-		userHandler,
-		tokenService,
-		labHandler)
-
-	server := &http.Server{
-		Addr:              cfg.HTTPAddress,
-		Handler:           api.Handler(),
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      30 * time.Second,
-		IdleTimeout:       60 * time.Second,
-	}
-
-	serverError := make(chan error, 1)
-
-	go func() {
-		logger.Info(
-			"starting HTTP server",
-			"address", cfg.HTTPAddress,
-			"environment", cfg.Environment,
+	if err := application.Run(); err != nil {
+		logger.Error(
+			"application stopped with error",
+			"error", err,
 		)
-
-		serverError <- server.ListenAndServe()
-	}()
-
-	shutdownContext, stop := signal.NotifyContext(
-		context.Background(),
-		syscall.SIGINT,
-		syscall.SIGTERM,
-	)
-	defer stop()
-
-	select {
-	case err := <-serverError:
-		if !errors.Is(err, http.ErrServerClosed) {
-			logger.Error(
-				"HTTP server failed",
-				"error", err,
-			)
-			os.Exit(1)
-		}
-
-	case <-shutdownContext.Done():
-		logger.Info("shutdown signal received")
-
-		timeoutContext, cancel := context.WithTimeout(
-			context.Background(),
-			cfg.ShutdownTimeout,
-		)
-		defer cancel()
-
-		if err := server.Shutdown(timeoutContext); err != nil {
-			logger.Error(
-				"failed to shut down HTTP server",
-				"error", err,
-			)
-			os.Exit(1)
-		}
-
-		logger.Info("HTTP server stopped")
+		os.Exit(1)
 	}
 }
