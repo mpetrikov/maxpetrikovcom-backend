@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	userservice "github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/user"
 )
@@ -28,29 +27,11 @@ type meResponse struct {
 }
 
 func (h *UserHandler) Me(c *gin.Context) {
-	userIDValue, exists := c.Get(userIDContextKey)
-	if !exists {
-		c.JSON(
-			http.StatusUnauthorized,
-			gin.H{"error": "user not found in context"},
-		)
-		return
-	}
-
-	userIDString, ok := userIDValue.(string)
+	userID, ok := authenticatedUserID(c)
 	if !ok {
 		c.JSON(
-			http.StatusInternalServerError,
-			gin.H{"error": "invalid user id"},
-		)
-		return
-	}
-
-	userID, err := uuid.Parse(userIDString)
-	if err != nil {
-		c.JSON(
 			http.StatusUnauthorized,
-			gin.H{"error": "invalid user id"},
+			gin.H{"error": "invalid authenticated user"},
 		)
 		return
 	}

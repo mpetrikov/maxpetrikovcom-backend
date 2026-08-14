@@ -8,10 +8,11 @@ import (
 )
 
 type dependencies struct {
-	authHandler  *httpserver.AuthHandler
-	userHandler  *httpserver.UserHandler
-	labHandler   *httpserver.LabHandler
-	tokenService *auth.TokenService
+	authHandler       *httpserver.AuthHandler
+	userHandler       *httpserver.UserHandler
+	labHandler        *httpserver.LabHandler
+	labSessionHandler *httpserver.LabSessionHandler
+	tokenService      *auth.TokenService
 }
 
 func buildDependencies(
@@ -26,8 +27,9 @@ func buildDependencies(
 			db,
 			tokenService,
 		),
-		userHandler:  buildUserHandler(db),
-		labHandler:   buildLabHandler(db),
-		tokenService: tokenService,
+		userHandler:       buildUserHandler(db),
+		labHandler:        buildLabHandler(db),
+		labSessionHandler: buildLabSessionHandler(db),
+		tokenService:      tokenService,
 	}
 }

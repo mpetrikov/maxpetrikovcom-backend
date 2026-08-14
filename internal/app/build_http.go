@@ -24,6 +24,7 @@ func buildHTTPServer(
 		deps.userHandler,
 		deps.tokenService,
 		deps.labHandler,
+		deps.labSessionHandler,
 	)
 
 	return &http.Server{

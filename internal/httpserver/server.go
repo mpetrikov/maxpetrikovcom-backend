@@ -11,13 +11,14 @@ import (
 )
 
 type Server struct {
-	logger      *slog.Logger
-	router      *gin.Engine
-	db          *pgxpool.Pool
-	authHandler *AuthHandler
-	userHandler *UserHandler
-	tokens      *authservice.TokenService
-	labHandler  *LabHandler
+	logger            *slog.Logger
+	router            *gin.Engine
+	db                *pgxpool.Pool
+	authHandler       *AuthHandler
+	userHandler       *UserHandler
+	tokens            *authservice.TokenService
+	labHandler        *LabHandler
+	labSessionHandler *LabSessionHandler
 }
 
 func New(logger *slog.Logger,
@@ -26,17 +27,19 @@ func New(logger *slog.Logger,
 	userHandler *UserHandler,
 	tokens *authservice.TokenService,
 	labHandler *LabHandler,
+	labSessionHandler *LabSessionHandler,
 ) *Server {
 	router := gin.New()
 
 	server := &Server{
-		logger:      logger,
-		router:      router,
-		db:          db,
-		authHandler: authHandler,
-		userHandler: userHandler,
-		tokens:      tokens,
-		labHandler:  labHandler,
+		logger:            logger,
+		router:            router,
+		db:                db,
+		authHandler:       authHandler,
+		userHandler:       userHandler,
+		tokens:            tokens,
+		labHandler:        labHandler,
+		labSessionHandler: labSessionHandler,
 	}
 
 	server.registerMiddleware()
@@ -73,6 +76,11 @@ func (s *Server) registerRoutes() {
 	protected.Use(authMiddleware(s.tokens))
 	{
 		protected.GET("/me", s.userHandler.Me)
+
+		protected.POST("/lab-sessions", s.labSessionHandler.Create)
+		protected.GET("/lab-sessions", s.labSessionHandler.List)
+		protected.GET("/lab-sessions/:id", s.labSessionHandler.Get)
+		protected.DELETE("/lab-sessions/:id", s.labSessionHandler.Stop)
 
 		admin := protected.Group("/admin")
 		admin.Use(requireRole(role.Admin))
