@@ -1,0 +1,31 @@
+info:
+  name: Start Lab Session
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/labs/{{labSlug}}/sessions"
+  body:
+    type: json
+    data: |-
+      {
+        "lab_slug": "linux-processes"
+      }
+  auth:
+    type: bearer
+    token: "{{accessToken}}"
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        const body = res.getBody();
+
+        bru.setVar("labSessionId", body.id);
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

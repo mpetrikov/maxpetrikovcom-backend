@@ -1,0 +1,31 @@
+info:
+  name: Create Lab
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseUrl}}/admin/labs"
+  body:
+    type: json
+    data: |-
+      {
+        "slug": "linux-processes",
+        "title": "Linux Processes",
+        "description": "Inspect and manage Linux processes.",
+        "difficulty": "easy",
+        "timeout_minutes": 30,
+        "image": "ubuntu:24.04",
+        "cpu_limit": "500m",
+        "memory_limit": "512Mi",
+        "is_published": true
+      }
+  auth:
+    type: bearer
+    token: "{{accessToken}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
