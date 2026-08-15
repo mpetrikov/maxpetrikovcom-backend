@@ -55,9 +55,10 @@ func (a *App) Run() error {
 		)
 	}
 
+	a.rabbitMQ.Close()
 	a.db.Close()
 
-	a.logger.Info("HTTP server stopped")
+	a.logger.Info("application stopped")
 
 	return nil
 }

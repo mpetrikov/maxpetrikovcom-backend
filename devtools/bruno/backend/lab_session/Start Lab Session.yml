@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: "{{baseUrl}}/labs/{{labSlug}}/sessions"
+  url: "{{baseUrl}}/lab-sessions"
   body:
     type: json
     data: |-

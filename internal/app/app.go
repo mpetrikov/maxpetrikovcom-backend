@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/config"
+	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/queue/rabbitmq"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/repository/postgres"
 )
 
@@ -16,7 +17,9 @@ type App struct {
 	config config.Config
 	logger *slog.Logger
 
-	db         *pgxpool.Pool
+	db       *pgxpool.Pool
+	rabbitMQ *rabbitmq.Client
+
 	httpServer *http.Server
 }
 
@@ -38,6 +41,20 @@ func New(
 
 	logger.Info("connected to PostgreSQL")
 
+	rabbitMQ, err := buildRabbitMQ(
+		cfg.RabbitMQURL,
+	)
+	if err != nil {
+		db.Close()
+
+		return nil, fmt.Errorf(
+			"initialize RabbitMQ: %w",
+			err,
+		)
+	}
+
+	logger.Info("connected to RabbitMQ")
+
 	deps := buildDependencies(
 		cfg,
 		db,
@@ -51,9 +68,12 @@ func New(
 	)
 
 	return &App{
-		config:     cfg,
-		logger:     logger,
-		db:         db,
+		config: cfg,
+		logger: logger,
+
+		db:       db,
+		rabbitMQ: rabbitMQ,
+
 		httpServer: server,
 	}, nil
 }
