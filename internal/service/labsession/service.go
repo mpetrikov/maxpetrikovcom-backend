@@ -2,26 +2,32 @@ package labsession
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/job"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/labsession"
-	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/repository/contracts"
+	queuecontracts "github.com/maxpetrikov/maxpetrikovcom-backend/internal/queue/contracts"
+	repositorycontracts "github.com/maxpetrikov/maxpetrikovcom-backend/internal/repository/contracts"
 )
 
 type Service struct {
-	labs        contracts.LabRepository
-	labSessions contracts.LabSessionRepository
+	labs        repositorycontracts.LabRepository
+	labSessions repositorycontracts.LabSessionRepository
+	publisher   queuecontracts.LabJobPublisher
 }
 
 func NewService(
-	labs contracts.LabRepository,
-	labSessions contracts.LabSessionRepository,
+	labs repositorycontracts.LabRepository,
+	labSessions repositorycontracts.LabSessionRepository,
+	publisher queuecontracts.LabJobPublisher,
 ) *Service {
 	return &Service{
 		labs:        labs,
 		labSessions: labSessions,
+		publisher:   publisher,
 	}
 }
 
@@ -53,7 +59,25 @@ func (s *Service) Create(
 		),
 	}
 
-	return s.labSessions.Create(ctx, session)
+	created, err := s.labSessions.Create(ctx, session)
+	if err != nil {
+		return labsession.Session{}, err
+	}
+
+	err = s.publisher.PublishCreate(
+		ctx,
+		job.LabCreate{
+			LabSessionID: created.ID,
+			LabID:        created.LabID,
+			UserID:       created.UserID,
+		},
+	)
+	if err != nil {
+		return labsession.Session{},
+			fmt.Errorf("publish lab create job: %w", err)
+	}
+
+	return created, nil
 }
 
 func (s *Service) Get(

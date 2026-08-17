@@ -58,6 +58,7 @@ func New(
 	deps := buildDependencies(
 		cfg,
 		db,
+		rabbitMQ,
 	)
 
 	server := buildHTTPServer(

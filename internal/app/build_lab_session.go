@@ -6,11 +6,13 @@ import (
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/httpserver"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/repository/postgres"
 
+	queuecontracts "github.com/maxpetrikov/maxpetrikovcom-backend/internal/queue/contracts"
 	labsessionservice "github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/labsession"
 )
 
 func buildLabSessionHandler(
 	db *pgxpool.Pool,
+	publisher queuecontracts.LabJobPublisher,
 ) *httpserver.LabSessionHandler {
 	labRepository :=
 		postgres.NewLabRepository(db)
@@ -22,6 +24,7 @@ func buildLabSessionHandler(
 		labsessionservice.NewService(
 			labRepository,
 			labSessionRepository,
+			publisher,
 		)
 
 	return httpserver.NewLabSessionHandler(
