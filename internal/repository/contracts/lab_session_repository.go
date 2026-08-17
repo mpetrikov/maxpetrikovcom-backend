@@ -30,4 +30,9 @@ type LabSessionRepository interface {
 		id uuid.UUID,
 		userID uuid.UUID,
 	) error
+
+	MarkProvisioning(
+		ctx context.Context,
+		id uuid.UUID,
+	) error
 }

@@ -226,3 +226,33 @@ func (r *LabSessionRepository) Stop(
 
 	return nil
 }
+
+func (r *LabSessionRepository) MarkProvisioning(
+	ctx context.Context,
+	id uuid.UUID,
+) error {
+	tag, err := r.db.Exec(
+		ctx,
+		`
+		UPDATE lab_sessions
+		SET status = $2
+		WHERE id = $1
+		  AND status = $3
+		`,
+		id,
+		labsession.StatusProvisioning,
+		labsession.StatusPending,
+	)
+	if err != nil {
+		return fmt.Errorf(
+			"mark lab session provisioning: %w",
+			err,
+		)
+	}
+
+	if tag.RowsAffected() == 0 {
+		return labsession.ErrNotFound
+	}
+
+	return nil
+}

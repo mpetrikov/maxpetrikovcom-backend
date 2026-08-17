@@ -113,3 +113,10 @@ func (s *Service) Stop(
 		userID,
 	)
 }
+
+func (s *Service) MarkProvisioning(
+	ctx context.Context,
+	id uuid.UUID,
+) error {
+	return s.labSessions.MarkProvisioning(ctx, id)
+}
