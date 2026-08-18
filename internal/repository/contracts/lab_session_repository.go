@@ -20,6 +20,11 @@ type LabSessionRepository interface {
 		userID uuid.UUID,
 	) (labsession.Session, error)
 
+	GetByID(
+		ctx context.Context,
+		id uuid.UUID,
+	) (labsession.Session, error)
+
 	ListByUserID(
 		ctx context.Context,
 		userID uuid.UUID,
@@ -32,6 +37,11 @@ type LabSessionRepository interface {
 	) error
 
 	MarkProvisioning(
+		ctx context.Context,
+		id uuid.UUID,
+	) error
+
+	MarkRunning(
 		ctx context.Context,
 		id uuid.UUID,
 	) error

@@ -3,11 +3,9 @@ package worker
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/job"
-	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/labsession"
 )
 
 func (w *Worker) handleLabCreate(
@@ -17,10 +15,7 @@ func (w *Worker) handleLabCreate(
 	var message job.LabCreate
 
 	if err := json.Unmarshal(body, &message); err != nil {
-		return fmt.Errorf(
-			"decode lab.create message: %w",
-			err,
-		)
+		return fmt.Errorf("decode lab.create message: %w", err)
 	}
 
 	w.logger.Info(
@@ -30,24 +25,12 @@ func (w *Worker) handleLabCreate(
 		"user_id", message.UserID,
 	)
 
-	if err := w.labSessionService.MarkProvisioning(
+	if err := w.labExecutionService.Start(
 		ctx,
-		message.LabSessionID,
+		message,
 	); err != nil {
-		if errors.Is(err, labsession.ErrNotFound) {
-			return fmt.Errorf(
-				"lab session not pending or not found: %w",
-				err,
-			)
-		}
-
-		return err
+		return fmt.Errorf("start lab execution: %w", err)
 	}
-
-	w.logger.Info(
-		"lab session moved to provisioning",
-		"lab_session_id", message.LabSessionID,
-	)
 
 	return nil
 }

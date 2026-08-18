@@ -134,6 +134,57 @@ func (r *LabSessionRepository) FindByID(
 	return session, nil
 }
 
+func (r *LabSessionRepository) GetByID(
+	ctx context.Context,
+	id uuid.UUID,
+) (labsession.Session, error) {
+	var session labsession.Session
+
+	err := r.db.QueryRow(
+		ctx,
+		`
+		SELECT
+			id,
+			lab_id,
+			user_id,
+			status,
+			namespace,
+			pod_name,
+			created_at,
+			started_at,
+			expires_at,
+			finished_at,
+			failure_reason
+		FROM lab_sessions
+		WHERE id = $1
+		`,
+		id,
+	).Scan(
+		&session.ID,
+		&session.LabID,
+		&session.UserID,
+		&session.Status,
+		&session.Namespace,
+		&session.PodName,
+		&session.CreatedAt,
+		&session.StartedAt,
+		&session.ExpiresAt,
+		&session.FinishedAt,
+		&session.FailureReason,
+	)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return labsession.Session{}, labsession.ErrNotFound
+	}
+
+	if err != nil {
+		return labsession.Session{},
+			fmt.Errorf("find lab session: %w", err)
+	}
+
+	return session, nil
+}
+
 func (r *LabSessionRepository) ListByUserID(
 	ctx context.Context,
 	userID uuid.UUID,
@@ -246,6 +297,36 @@ func (r *LabSessionRepository) MarkProvisioning(
 	if err != nil {
 		return fmt.Errorf(
 			"mark lab session provisioning: %w",
+			err,
+		)
+	}
+
+	if tag.RowsAffected() == 0 {
+		return labsession.ErrNotFound
+	}
+
+	return nil
+}
+
+func (r *LabSessionRepository) MarkRunning(
+	ctx context.Context,
+	id uuid.UUID,
+) error {
+	tag, err := r.db.Exec(
+		ctx,
+		`
+		UPDATE lab_sessions
+		SET status = $2
+		WHERE id = $1
+		  AND status = $3
+		`,
+		id,
+		labsession.StatusRunning,
+		labsession.StatusProvisioning,
+	)
+	if err != nil {
+		return fmt.Errorf(
+			"mark lab session running: %w",
 			err,
 		)
 	}

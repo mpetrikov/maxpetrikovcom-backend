@@ -6,12 +6,13 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/lab"
 	domainlab "github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/lab"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/repository/contracts"
 )
 
 type Service struct {
-	labs contracts.LabRepository
+	labRepository contracts.LabRepository
 }
 
 type CreateInput struct {
@@ -27,10 +28,10 @@ type CreateInput struct {
 }
 
 func NewService(
-	labs contracts.LabRepository,
+	labRepository contracts.LabRepository,
 ) *Service {
 	return &Service{
-		labs: labs,
+		labRepository: labRepository,
 	}
 }
 
@@ -51,18 +52,25 @@ func (s *Service) Create(
 		IsPublished:    input.IsPublished,
 	}
 
-	return s.labs.Create(ctx, newLab)
+	return s.labRepository.Create(ctx, newLab)
 }
 
 func (s *Service) FindBySlug(
 	ctx context.Context,
 	slug string,
 ) (domainlab.Lab, error) {
-	return s.labs.FindBySlug(ctx, slug)
+	return s.labRepository.FindBySlug(ctx, slug)
 }
 
 func (s *Service) ListPublished(
 	ctx context.Context,
 ) ([]domainlab.Lab, error) {
-	return s.labs.ListPublished(ctx)
+	return s.labRepository.ListPublished(ctx)
+}
+
+func (s *Service) FindByID(
+	ctx context.Context,
+	id uuid.UUID,
+) (lab.Lab, error) {
+	return s.labRepository.FindByID(ctx, id)
 }

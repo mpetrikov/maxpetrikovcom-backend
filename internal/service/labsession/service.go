@@ -14,20 +14,20 @@ import (
 )
 
 type Service struct {
-	labs        repositorycontracts.LabRepository
-	labSessions repositorycontracts.LabSessionRepository
-	publisher   queuecontracts.LabJobPublisher
+	labs                 repositorycontracts.LabRepository
+	labSessionRepository repositorycontracts.LabSessionRepository
+	publisher            queuecontracts.LabJobPublisher
 }
 
 func NewService(
 	labs repositorycontracts.LabRepository,
-	labSessions repositorycontracts.LabSessionRepository,
+	labSessionRepository repositorycontracts.LabSessionRepository,
 	publisher queuecontracts.LabJobPublisher,
 ) *Service {
 	return &Service{
-		labs:        labs,
-		labSessions: labSessions,
-		publisher:   publisher,
+		labs:                 labs,
+		labSessionRepository: labSessionRepository,
+		publisher:            publisher,
 	}
 }
 
@@ -59,7 +59,7 @@ func (s *Service) Create(
 		),
 	}
 
-	created, err := s.labSessions.Create(ctx, session)
+	created, err := s.labSessionRepository.Create(ctx, session)
 	if err != nil {
 		return labsession.Session{}, err
 	}
@@ -85,7 +85,7 @@ func (s *Service) Get(
 	id uuid.UUID,
 	userID uuid.UUID,
 ) (labsession.Session, error) {
-	return s.labSessions.FindByID(
+	return s.labSessionRepository.FindByID(
 		ctx,
 		id,
 		userID,
@@ -96,7 +96,7 @@ func (s *Service) ListForUser(
 	ctx context.Context,
 	userID uuid.UUID,
 ) ([]labsession.Session, error) {
-	return s.labSessions.ListByUserID(
+	return s.labSessionRepository.ListByUserID(
 		ctx,
 		userID,
 	)
@@ -107,7 +107,7 @@ func (s *Service) Stop(
 	id uuid.UUID,
 	userID uuid.UUID,
 ) error {
-	return s.labSessions.Stop(
+	return s.labSessionRepository.Stop(
 		ctx,
 		id,
 		userID,
@@ -118,5 +118,19 @@ func (s *Service) MarkProvisioning(
 	ctx context.Context,
 	id uuid.UUID,
 ) error {
-	return s.labSessions.MarkProvisioning(ctx, id)
+	return s.labSessionRepository.MarkProvisioning(ctx, id)
+}
+
+func (s *Service) MarkRunning(
+	ctx context.Context,
+	id uuid.UUID,
+) error {
+	return s.labSessionRepository.MarkRunning(ctx, id)
+}
+
+func (s *Service) GetById(
+	ctx context.Context,
+	sessionId uuid.UUID,
+) (labsession.Session, error) {
+	return s.labSessionRepository.GetByID(ctx, sessionId)
 }

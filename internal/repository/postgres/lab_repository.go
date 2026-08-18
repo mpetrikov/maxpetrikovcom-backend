@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -130,6 +131,58 @@ func (r *LabRepository) FindBySlug(
 		WHERE slug = $1
 		`,
 		slug,
+	).Scan(
+		&result.ID,
+		&result.Slug,
+		&result.Title,
+		&result.Description,
+		&result.Difficulty,
+		&result.TimeoutMinutes,
+		&result.Image,
+		&result.CPULimit,
+		&result.MemoryLimit,
+		&result.IsPublished,
+		&result.CreatedAt,
+		&result.UpdatedAt,
+	)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return lab.Lab{}, lab.ErrNotFound
+	}
+
+	if err != nil {
+		return lab.Lab{}, fmt.Errorf("find lab by slug: %w", err)
+	}
+
+	return result, nil
+}
+
+func (r *LabRepository) FindByID(
+	ctx context.Context,
+	labId uuid.UUID,
+) (lab.Lab, error) {
+	var result lab.Lab
+
+	err := r.db.QueryRow(
+		ctx,
+		`
+		SELECT
+			id,
+			slug,
+			title,
+			description,
+			difficulty,
+			timeout_minutes,
+			image,
+			cpu_limit,
+			memory_limit,
+			is_published,
+			created_at,
+			updated_at
+		FROM labs
+		WHERE id = $1
+		`,
+		labId,
 	).Scan(
 		&result.ID,
 		&result.Slug,

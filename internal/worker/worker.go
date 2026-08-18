@@ -10,6 +10,10 @@ import (
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/config"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/queue/rabbitmq"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/repository/postgres"
+	runnercontracts "github.com/maxpetrikov/maxpetrikovcom-backend/internal/runner/contracts"
+	runnerfake "github.com/maxpetrikov/maxpetrikovcom-backend/internal/runner/fake"
+	labservice "github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/lab"
+	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/labexecution"
 	labsessionservice "github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/labsession"
 )
 
@@ -20,7 +24,10 @@ type Worker struct {
 	db       *pgxpool.Pool
 	rabbitMQ *rabbitmq.Client
 
-	labSessionService *labsessionservice.Service
+	labSessionService   *labsessionservice.Service
+	labService          *labservice.Service
+	labRunner           runnercontracts.LabRunner
+	labExecutionService *labexecution.Service
 }
 
 func New(
@@ -52,6 +59,11 @@ func New(
 	}
 
 	labRepository := postgres.NewLabRepository(db)
+
+	labService := labservice.NewService(
+		labRepository,
+	)
+
 	labSessionRepository := postgres.NewLabSessionRepository(db)
 
 	labSessionService := labsessionservice.NewService(
@@ -60,11 +72,23 @@ func New(
 		rabbitMQ,
 	)
 
+	labRunner := runnerfake.NewLabRunner(logger)
+
+	labExecutionService := labexecution.NewService(
+		labService,
+		labSessionService,
+		labRunner,
+		logger,
+	)
+
 	return &Worker{
-		config:            cfg,
-		logger:            logger,
-		db:                db,
-		rabbitMQ:          rabbitMQ,
-		labSessionService: labSessionService,
+		config:              cfg,
+		logger:              logger,
+		db:                  db,
+		rabbitMQ:            rabbitMQ,
+		labService:          labService,
+		labSessionService:   labSessionService,
+		labRunner:           labRunner,
+		labExecutionService: labExecutionService,
 	}, nil
 }

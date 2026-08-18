@@ -1,1 +1,15 @@
 .env
+
+bin/
+dist/
+coverage.out
+*.test
+
+.vscode/
+.idea/
+.gocache/
+
+.DS_Store
+Thumbs.db
+
+*.log

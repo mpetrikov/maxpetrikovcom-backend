@@ -3,6 +3,7 @@ package contracts
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/lab"
 )
 
@@ -15,6 +16,11 @@ type LabRepository interface {
 	FindBySlug(
 		ctx context.Context,
 		slug string,
+	) (lab.Lab, error)
+
+	FindByID(
+		ctx context.Context,
+		labId uuid.UUID,
 	) (lab.Lab, error)
 
 	ListPublished(
