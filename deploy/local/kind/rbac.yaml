@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: maxpetrikov-worker
+  namespace: maxpetrikov-system
+  labels:
+    app.kubernetes.io/name: maxpetrikov-worker
+    app.kubernetes.io/part-of: maxpetrikovcom
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: lab-runtime-manager
+  namespace: maxpetrikov-labs
+  labels:
+    app.kubernetes.io/name: maxpetrikov-labs
+    app.kubernetes.io/part-of: maxpetrikovcom
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - create
+      - get
+      - list
+      - watch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - pods/log
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - pods/status
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: maxpetrikov-worker-lab-runtime-manager
+  namespace: maxpetrikov-labs
+  labels:
+    app.kubernetes.io/name: maxpetrikov-worker
+    app.kubernetes.io/part-of: maxpetrikovcom
+subjects:
+  - kind: ServiceAccount
+    name: maxpetrikov-worker
+    namespace: maxpetrikov-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: lab-runtime-manager
