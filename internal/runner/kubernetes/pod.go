@@ -17,6 +17,10 @@ const (
 	labelLabID        = "maxpetrikov.com/lab-id"
 	labelUserID       = "maxpetrikov.com/user-id"
 
+	annotationLabSessionID = "maxpetrikov.com/lab-session-id"
+	annotationLabID        = "maxpetrikov.com/lab-id"
+	annotationUserID       = "maxpetrikov.com/user-id"
+
 	labelValueApp    = "maxpetrikov-lab"
 	labelValuePartOf = "maxpetrikovcom"
 )
@@ -39,6 +43,16 @@ func makePodLabels(
 		labelLabSessionID: session.ID.String(),
 		labelLabID:        session.LabID.String(),
 		labelUserID:       session.UserID.String(),
+	}
+}
+
+func makePodAnnotations(
+	session labsession.Session,
+) map[string]string {
+	return map[string]string{
+		annotationLabSessionID: session.ID.String(),
+		annotationLabID:        session.LabID.String(),
+		annotationUserID:       session.UserID.String(),
 	}
 }
 
@@ -66,12 +80,14 @@ func buildPod(
 
 	return &k8scorev1.Pod{
 		ObjectMeta: k8smetav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels:    makePodLabels(session),
+			Name:        name,
+			Namespace:   namespace,
+			Labels:      makePodLabels(session),
+			Annotations: makePodAnnotations(session),
 		},
 		Spec: k8scorev1.PodSpec{
-			RestartPolicy: k8scorev1.RestartPolicyNever,
+			RestartPolicy:         k8scorev1.RestartPolicyNever,
+			ActiveDeadlineSeconds: makeActiveDeadlineSeconds(lab),
 			Containers: []k8scorev1.Container{
 				{
 					Name:            "lab",
@@ -83,6 +99,10 @@ func buildPod(
 						"sleep infinity",
 					},
 					Resources: k8scorev1.ResourceRequirements{
+						Requests: k8scorev1.ResourceList{
+							k8scorev1.ResourceCPU:    cpuLimit,
+							k8scorev1.ResourceMemory: memoryLimit,
+						},
 						Limits: k8scorev1.ResourceList{
 							k8scorev1.ResourceCPU:    cpuLimit,
 							k8scorev1.ResourceMemory: memoryLimit,
@@ -92,6 +112,14 @@ func buildPod(
 			},
 		},
 	}, nil
+}
+
+func makeActiveDeadlineSeconds(
+	lab lab.Lab,
+) *int64 {
+	seconds := int64(lab.TimeoutMinutes * 60)
+
+	return &seconds
 }
 
 func isPodReady(

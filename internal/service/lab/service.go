@@ -2,13 +2,14 @@ package lab
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
 
-	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/lab"
 	domainlab "github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/lab"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/repository/contracts"
+	k8sresource "k8s.io/apimachinery/pkg/api/resource"
 )
 
 type Service struct {
@@ -39,6 +40,18 @@ func (s *Service) Create(
 	ctx context.Context,
 	input CreateInput,
 ) (domainlab.Lab, error) {
+	image := strings.TrimSpace(input.Image)
+	cpuLimit := strings.TrimSpace(input.CPULimit)
+	memoryLimit := strings.TrimSpace(input.MemoryLimit)
+
+	if err := validateRuntimeConfig(
+		image,
+		cpuLimit,
+		memoryLimit,
+	); err != nil {
+		return domainlab.Lab{}, err
+	}
+
 	newLab := domainlab.Lab{
 		ID:             uuid.New(),
 		Slug:           strings.TrimSpace(strings.ToLower(input.Slug)),
@@ -46,9 +59,9 @@ func (s *Service) Create(
 		Description:    input.Description,
 		Difficulty:     input.Difficulty,
 		TimeoutMinutes: input.TimeoutMinutes,
-		Image:          strings.TrimSpace(input.Image),
-		CPULimit:       strings.TrimSpace(input.CPULimit),
-		MemoryLimit:    strings.TrimSpace(input.MemoryLimit),
+		Image:          image,
+		CPULimit:       cpuLimit,
+		MemoryLimit:    memoryLimit,
 		IsPublished:    input.IsPublished,
 	}
 
@@ -71,6 +84,37 @@ func (s *Service) ListPublished(
 func (s *Service) FindByID(
 	ctx context.Context,
 	id uuid.UUID,
-) (lab.Lab, error) {
+) (domainlab.Lab, error) {
 	return s.labRepository.FindByID(ctx, id)
+}
+
+func validateRuntimeConfig(
+	image string,
+	cpuLimit string,
+	memoryLimit string,
+) error {
+	if image == "" {
+		return fmt.Errorf(
+			"%w: image is required",
+			domainlab.ErrInvalidInput,
+		)
+	}
+
+	if _, err := k8sresource.ParseQuantity(cpuLimit); err != nil {
+		return fmt.Errorf(
+			"%w: invalid CPU limit: %v",
+			domainlab.ErrInvalidInput,
+			err,
+		)
+	}
+
+	if _, err := k8sresource.ParseQuantity(memoryLimit); err != nil {
+		return fmt.Errorf(
+			"%w: invalid memory limit: %v",
+			domainlab.ErrInvalidInput,
+			err,
+		)
+	}
+
+	return nil
 }

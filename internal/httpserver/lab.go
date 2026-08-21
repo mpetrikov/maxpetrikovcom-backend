@@ -27,7 +27,7 @@ type createLabRequest struct {
 	Description    string               `json:"description" binding:"required"`
 	Difficulty     domainlab.Difficulty `json:"difficulty" binding:"required,oneof=easy medium hard"`
 	TimeoutMinutes int                  `json:"timeout_minutes" binding:"required,min=1,max=240"`
-	Image          string               `json:"image"`
+	Image          string               `json:"image" binding:"required"`
 	CPULimit       string               `json:"cpu_limit" binding:"required"`
 	MemoryLimit    string               `json:"memory_limit" binding:"required"`
 	IsPublished    bool                 `json:"is_published"`
@@ -91,6 +91,14 @@ func (h *LabHandler) Create(c *gin.Context) {
 		c.JSON(
 			http.StatusConflict,
 			gin.H{"error": "lab slug already exists"},
+		)
+		return
+	}
+
+	if errors.Is(err, domainlab.ErrInvalidInput) {
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{"error": "invalid lab runtime config"},
 		)
 		return
 	}
