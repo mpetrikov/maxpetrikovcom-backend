@@ -168,6 +168,18 @@ The pod should include:
 - `activeDeadlineSeconds` from `labs.timeout_minutes`
 - labels and annotations with `lab-session-id`, `lab-id`, and `user-id`
 
+## Lab runtime command
+
+For the current PoC, the Kubernetes runner overrides the container command:
+
+```text
+/bin/sh -c "sleep infinity"
+```
+
+This keeps generic Linux images alive while the lab session is running. The current contract requires lab images to include `/bin/sh`.
+
+Before introducing golden images, decide whether the final command ownership belongs to the image entrypoint or to explicit lab template `command`/`args` fields.
+
 ## Verify database state
 
 Check the session in PostgreSQL:

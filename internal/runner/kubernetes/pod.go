@@ -23,7 +23,17 @@ const (
 
 	labelValueApp    = "maxpetrikov-lab"
 	labelValuePartOf = "maxpetrikovcom"
+
+	labContainerName = "lab"
 )
+
+// defaultLabCommand keeps generic Linux lab images alive until the final lab
+// runtime contract is defined by golden image entrypoints or lab command fields.
+var defaultLabCommand = []string{
+	"/bin/sh",
+	"-c",
+	"sleep infinity",
+}
 
 func makePodName(
 	session labsession.Session,
@@ -90,14 +100,10 @@ func buildPod(
 			ActiveDeadlineSeconds: makeActiveDeadlineSeconds(lab),
 			Containers: []k8scorev1.Container{
 				{
-					Name:            "lab",
+					Name:            labContainerName,
 					Image:           lab.Image,
 					ImagePullPolicy: k8scorev1.PullIfNotPresent,
-					Command: []string{
-						"/bin/sh",
-						"-c",
-						"sleep infinity",
-					},
+					Command:         defaultLabCommand,
 					Resources: k8scorev1.ResourceRequirements{
 						Requests: k8scorev1.ResourceList{
 							k8scorev1.ResourceCPU:    cpuLimit,
