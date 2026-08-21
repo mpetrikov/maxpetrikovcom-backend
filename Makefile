@@ -3,6 +3,7 @@ KIND_CLUSTER ?= maxpetrikov-labs
 KIND_CONFIG ?= deploy/local/kind/cluster.yaml
 
 .PHONY: migrate-up migrate-down migrate-version migrate-force
+.PHONY: seed-demo-lab
 .PHONY: kind-up kind-apply kind-down kind-status kind-check-rbac kind-bootstrap
 
 migrate-up:
@@ -29,6 +30,11 @@ migrate-force:
 		-path migrations \
 		-database "$(DATABASE_URL)" \
 		force $(VERSION)
+
+seed-demo-lab:
+	docker exec -i maxpetrikov-postgres \
+		psql -U max -d maxpetrikov \
+		< devtools/sql/seed_demo_lab.sql
 
 kind-up:
 	kind create cluster --config $(KIND_CONFIG)
