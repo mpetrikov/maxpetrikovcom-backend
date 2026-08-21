@@ -7,57 +7,18 @@ programming, DevOps, and interactive hands-on labs.
 
 This project uses `golang-migrate` for PostgreSQL schema migrations.
 
-Install the migration CLI:
+Install the migration CLI if it is not already available:
 
 ```bash
 go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 ```
 
-Check the installation:
-
-```bash
-migrate -version
-```
-
-Apply migrations:
-
-```bash
-migrate \
-  -path migrations \
-  -database "postgres://max:123@localhost:5432/maxpetrikov?sslmode=disable" \
-  up
-```
-
-Downgrade one migration:
-
-```bash
-migrate \
-  -path migrations \
-  -database "postgres://max:123@localhost:5432/maxpetrikov?sslmode=disable" \
-  down 1
-```
-
-Apply all pending migrations:
+Common commands:
 
 ```bash
 make migrate-up
-```
-
-Rollback the latest migration:
-
-```bash
 make migrate-down
-```
-
-Check the current migration version:
-
-```bash
 make migrate-version
-```
-
-Force a migration version:
-
-```bash
 make migrate-force VERSION=2
 ```
 
@@ -78,3 +39,9 @@ migration 2 fails
 ```
 
 Use `migrate-force` only when you understand the current database state.
+
+## Local lab run
+
+See [docs/local-lab-run.md](docs/local-lab-run.md) for the reproducible local
+flow with Docker Compose, kind, migrations, demo lab seed, Bruno API checks, and
+Kubernetes/DB verification.
