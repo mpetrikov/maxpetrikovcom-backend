@@ -71,17 +71,20 @@ func (s *Service) Start(ctx context.Context, message job.LabCreate) error {
 		return err
 	}
 
-	if err := s.labRunner.Start(
+	startResult, err := s.labRunner.Start(
 		ctx,
 		labSession,
 		currentLab,
-	); err != nil {
+	)
+	if err != nil {
 		return fmt.Errorf("start lab environment: %w", err)
 	}
 
 	if err := s.labSessionService.MarkRunning(
 		ctx,
 		message.LabSessionID,
+		startResult.Namespace,
+		startResult.PodName,
 	); err != nil {
 		return fmt.Errorf("mark lab session running: %w", err)
 	}

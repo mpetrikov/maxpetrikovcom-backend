@@ -124,8 +124,15 @@ func (s *Service) MarkProvisioning(
 func (s *Service) MarkRunning(
 	ctx context.Context,
 	id uuid.UUID,
+	namespace string,
+	podName string,
 ) error {
-	return s.labSessionRepository.MarkRunning(ctx, id)
+	return s.labSessionRepository.MarkRunning(
+		ctx,
+		id,
+		namespace,
+		podName,
+	)
 }
 
 func (s *Service) GetById(

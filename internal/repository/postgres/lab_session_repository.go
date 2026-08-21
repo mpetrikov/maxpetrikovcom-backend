@@ -288,7 +288,7 @@ func (r *LabSessionRepository) MarkProvisioning(
 		UPDATE lab_sessions
 		SET status = $2
 		WHERE id = $1
-		  AND status = $3
+		  AND status IN ($3, $2)
 		`,
 		id,
 		labsession.StatusProvisioning,
@@ -311,17 +311,25 @@ func (r *LabSessionRepository) MarkProvisioning(
 func (r *LabSessionRepository) MarkRunning(
 	ctx context.Context,
 	id uuid.UUID,
+	namespace string,
+	podName string,
 ) error {
 	tag, err := r.db.Exec(
 		ctx,
 		`
 		UPDATE lab_sessions
-		SET status = $2
+		SET
+			status = $2,
+			namespace = COALESCE(namespace, $3),
+			pod_name = COALESCE(pod_name, $4),
+			started_at = COALESCE(started_at, NOW())
 		WHERE id = $1
-		  AND status = $3
+		  AND status IN ($5, $2)
 		`,
 		id,
 		labsession.StatusRunning,
+		namespace,
+		podName,
 		labsession.StatusProvisioning,
 	)
 	if err != nil {

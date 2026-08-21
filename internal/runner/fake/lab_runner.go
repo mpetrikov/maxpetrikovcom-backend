@@ -6,6 +6,12 @@ import (
 
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/lab"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/labsession"
+	runnercontracts "github.com/maxpetrikov/maxpetrikovcom-backend/internal/runner/contracts"
+)
+
+const (
+	namespace = "fake"
+	podPrefix = "fake-lab-"
 )
 
 type LabRunner struct {
@@ -24,15 +30,22 @@ func (r *LabRunner) Start(
 	ctx context.Context,
 	session labsession.Session,
 	lab lab.Lab,
-) error {
+) (runnercontracts.StartResult, error) {
+	podName := podPrefix + session.ID.String()
+
 	r.logger.Info(
 		"starting fake lab environment",
 		"lab_session_id", session.ID,
 		"lab_id", lab.ID,
 		"image", lab.Image,
+		"namespace", namespace,
+		"pod_name", podName,
 	)
 
-	return nil
+	return runnercontracts.StartResult{
+		Namespace: namespace,
+		PodName:   podName,
+	}, nil
 }
 
 func (r *LabRunner) Stop(

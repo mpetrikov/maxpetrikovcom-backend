@@ -12,6 +12,7 @@ import (
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/repository/postgres"
 	runnercontracts "github.com/maxpetrikov/maxpetrikovcom-backend/internal/runner/contracts"
 	runnerfake "github.com/maxpetrikov/maxpetrikovcom-backend/internal/runner/fake"
+	runnerkubernetes "github.com/maxpetrikov/maxpetrikovcom-backend/internal/runner/kubernetes"
 	labservice "github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/lab"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/labexecution"
 	labsessionservice "github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/labsession"
@@ -72,7 +73,16 @@ func New(
 		rabbitMQ,
 	)
 
-	labRunner := runnerfake.NewLabRunner(logger)
+	labRunner, err := buildLabRunner(
+		cfg,
+		logger,
+	)
+	if err != nil {
+		rabbitMQ.Close()
+		db.Close()
+
+		return nil, err
+	}
 
 	labExecutionService := labexecution.NewService(
 		labService,
@@ -91,4 +101,38 @@ func New(
 		labRunner:           labRunner,
 		labExecutionService: labExecutionService,
 	}, nil
+}
+
+func buildLabRunner(
+	cfg config.Config,
+	logger *slog.Logger,
+) (runnercontracts.LabRunner, error) {
+	switch cfg.LabRunnerType {
+	case config.LabRunnerTypeFake:
+		return runnerfake.NewLabRunner(logger), nil
+
+	case config.LabRunnerTypeKubernetes:
+		client, err := runnerkubernetes.NewClient(
+			cfg.KubeconfigPath,
+		)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"initialize Kubernetes lab runner: %w",
+				err,
+			)
+		}
+
+		return runnerkubernetes.NewLabRunner(
+			client,
+			cfg.KubernetesLabNamespace,
+			cfg.KubernetesPodReadyTimeout,
+			logger,
+		), nil
+
+	default:
+		return nil, fmt.Errorf(
+			"unsupported lab runner type: %s",
+			cfg.LabRunnerType,
+		)
+	}
 }

@@ -6,6 +6,11 @@ import (
 	"time"
 )
 
+const (
+	LabRunnerTypeFake       = "fake"
+	LabRunnerTypeKubernetes = "kubernetes"
+)
+
 type Config struct {
 	Environment        string
 	HTTPAddress        string
@@ -19,6 +24,11 @@ type Config struct {
 	JWTIssuer     string
 	JWTAccessTTL  time.Duration
 	JWTRefreshTTL time.Duration
+
+	LabRunnerType             string
+	KubeconfigPath            string
+	KubernetesLabNamespace    string
+	KubernetesPodReadyTimeout time.Duration
 
 	ShutdownTimeout time.Duration
 }
@@ -44,6 +54,27 @@ func Load() (Config, error) {
 		)
 	}
 
+	kubernetesPodReadyTimeout, err := time.ParseDuration(
+		getEnv("KUBERNETES_POD_READY_TIMEOUT", "60s"),
+	)
+	if err != nil {
+		return Config{}, fmt.Errorf(
+			"parse KUBERNETES_POD_READY_TIMEOUT: %w",
+			err,
+		)
+	}
+
+	labRunnerType := getEnv("LAB_RUNNER_TYPE", LabRunnerTypeFake)
+	if labRunnerType != LabRunnerTypeFake &&
+		labRunnerType != LabRunnerTypeKubernetes {
+		return Config{}, fmt.Errorf(
+			"unsupported LAB_RUNNER_TYPE %q, expected %q or %q",
+			labRunnerType,
+			LabRunnerTypeFake,
+			LabRunnerTypeKubernetes,
+		)
+	}
+
 	return Config{
 		Environment:        getEnv("APP_ENV", "local"),
 		HTTPAddress:        getEnv("HTTP_ADDRESS", ":8080"),
@@ -57,6 +88,11 @@ func Load() (Config, error) {
 		JWTIssuer:         getEnv("JWT_ISSUER", "maxpetrikov.com"),
 		JWTAccessTTL:      jwtAccessTTL,
 		JWTRefreshTTL:     jwtRefreshTTL,
+
+		LabRunnerType:             labRunnerType,
+		KubeconfigPath:            getEnv("KUBECONFIG_PATH", getEnv("KUBECONFIG", "")),
+		KubernetesLabNamespace:    getEnv("KUBERNETES_LAB_NAMESPACE", "maxpetrikov-labs"),
+		KubernetesPodReadyTimeout: kubernetesPodReadyTimeout,
 
 		ShutdownTimeout: 10 * time.Second,
 	}, nil

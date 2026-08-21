@@ -44,5 +44,7 @@ type LabSessionRepository interface {
 	MarkRunning(
 		ctx context.Context,
 		id uuid.UUID,
+		namespace string,
+		podName string,
 	) error
 }
