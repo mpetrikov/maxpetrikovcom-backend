@@ -207,9 +207,40 @@ pending -> provisioning -> running
 The Bruno `Get Lab Session` response should include populated `namespace`,
 `pod_name`, and `started_at` fields after the worker finishes provisioning.
 
+## Stop the lab session
+
+Run:
+
+```text
+lab_session / Stop Lab Session
+```
+
+The API returns `204 No Content` after publishing a `lab.stop` job. The worker
+then deletes the Kubernetes pod and marks the session as `stopped`.
+
+Verify the pod is gone:
+
+```powershell
+kubectl get pods -n maxpetrikov-labs
+```
+
+Verify the database state:
+
+```powershell
+docker exec maxpetrikov-postgres `
+  psql -U max -d maxpetrikov `
+  -c "select id, status, namespace, pod_name, started_at, finished_at from lab_sessions where id = '<lab-session-id>';"
+```
+
+Expected result:
+
+- `status` becomes `stopped`
+- `finished_at` is populated
+- the Kubernetes pod is deleted
+
 ## Useful cleanup
 
-Delete lab pods manually during local testing:
+Delete lab pods manually only if local testing leaves stale resources:
 
 ```powershell
 kubectl delete pod -n maxpetrikov-labs -l app.kubernetes.io/name=maxpetrikov-lab

@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -14,10 +13,6 @@ import (
 	k8smetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8swait "k8s.io/apimachinery/pkg/util/wait"
 	k8sclient "k8s.io/client-go/kubernetes"
-)
-
-var errNotImplemented = errors.New(
-	"kubernetes lab runner is not implemented yet",
 )
 
 var _ runnercontracts.LabRunner = (*LabRunner)(nil)
@@ -77,14 +72,51 @@ func (lr *LabRunner) Stop(
 	ctx context.Context,
 	session labsession.Session,
 ) error {
+	namespace, podName := lr.resolvePodReference(session)
+
 	lr.logger.Info(
 		"stopping Kubernetes lab environment",
 		"lab_session_id", session.ID,
-		"namespace", lr.namespace,
-		"pod_name", makePodName(session),
+		"namespace", namespace,
+		"pod_name", podName,
 	)
 
-	return errNotImplemented
+	err := lr.client.CoreV1().
+		Pods(namespace).
+		Delete(
+			ctx,
+			podName,
+			k8smetav1.DeleteOptions{},
+		)
+	if k8serrors.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf(
+			"delete Kubernetes lab pod: %w",
+			err,
+		)
+	}
+
+	return nil
+}
+
+func (lr *LabRunner) resolvePodReference(
+	session labsession.Session,
+) (string, string) {
+	// Prefer the persisted runtime reference so cleanup still works after
+	// changing the configured namespace or pod naming strategy.
+	namespace := lr.namespace
+	if session.Namespace != nil && *session.Namespace != "" {
+		namespace = *session.Namespace
+	}
+
+	podName := makePodName(session)
+	if session.PodName != nil && *session.PodName != "" {
+		podName = *session.PodName
+	}
+
+	return namespace, podName
 }
 
 func (lr *LabRunner) createPod(

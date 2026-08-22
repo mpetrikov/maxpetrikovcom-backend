@@ -249,9 +249,9 @@ func (r *LabSessionRepository) ListByUserID(
 	return sessions, nil
 }
 
-func (r *LabSessionRepository) Stop(
+func (r *LabSessionRepository) MarkStopping(
 	ctx context.Context,
-	id uuid.UUID,
+	labSessionId uuid.UUID,
 	userID uuid.UUID,
 ) error {
 	tag, err := r.db.Exec(
@@ -259,16 +259,18 @@ func (r *LabSessionRepository) Stop(
 		`
 		UPDATE lab_sessions
 		SET
-			status = 'stopped',
-			finished_at = COALESCE(finished_at, NOW())
+			status = $3
 		WHERE id = $1
 		  AND user_id = $2
+		  AND status IN ($4, $3)
 		`,
-		id,
+		labSessionId,
 		userID,
+		labsession.StatusStopping,
+		labsession.StatusRunning,
 	)
 	if err != nil {
-		return fmt.Errorf("stop lab session: %w", err)
+		return fmt.Errorf("mark lab session stopping: %w", err)
 	}
 
 	if tag.RowsAffected() == 0 {
@@ -335,6 +337,38 @@ func (r *LabSessionRepository) MarkRunning(
 	if err != nil {
 		return fmt.Errorf(
 			"mark lab session running: %w",
+			err,
+		)
+	}
+
+	if tag.RowsAffected() == 0 {
+		return labsession.ErrNotFound
+	}
+
+	return nil
+}
+
+func (r *LabSessionRepository) MarkStopped(
+	ctx context.Context,
+	labSessionId uuid.UUID,
+) error {
+	tag, err := r.db.Exec(
+		ctx,
+		`
+		UPDATE lab_sessions
+		SET
+			status = $2,
+			finished_at = COALESCE(finished_at, NOW())
+		WHERE id = $1
+		  AND status IN ($3, $2)
+		`,
+		labSessionId,
+		labsession.StatusStopped,
+		labsession.StatusStopping,
+	)
+	if err != nil {
+		return fmt.Errorf(
+			"mark lab session stopped: %w",
 			err,
 		)
 	}

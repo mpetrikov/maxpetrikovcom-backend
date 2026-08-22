@@ -16,10 +16,18 @@ func (w *Worker) Run() error {
 		w.logger.Info("worker resources closed")
 	}()
 
-	deliveries, err := w.rabbitMQ.ConsumeLabCreate()
+	labCreateDeliveries, err := w.rabbitMQ.ConsumeLabCreate()
 	if err != nil {
 		return fmt.Errorf(
 			"start lab.create consumer: %w",
+			err,
+		)
+	}
+
+	labStopDeliveries, err := w.rabbitMQ.ConsumeLabStop()
+	if err != nil {
+		return fmt.Errorf(
+			"start lab.stop consumer: %w",
 			err,
 		)
 	}
@@ -39,7 +47,7 @@ func (w *Worker) Run() error {
 			w.logger.Info("worker shutdown signal received")
 			return nil
 
-		case delivery, ok := <-deliveries:
+		case delivery, ok := <-labCreateDeliveries:
 			if !ok {
 				return errors.New(
 					"lab.create delivery channel closed",
@@ -52,6 +60,32 @@ func (w *Worker) Run() error {
 			); err != nil {
 				w.logger.Error(
 					"failed to process lab.create",
+					"error", err,
+				)
+
+				_ = delivery.Nack(
+					false,
+					true,
+				)
+
+				continue
+			}
+
+			_ = delivery.Ack(false)
+
+		case delivery, ok := <-labStopDeliveries:
+			if !ok {
+				return errors.New(
+					"lab.stop delivery channel closed",
+				)
+			}
+
+			if err := w.handleLabStop(
+				ctx,
+				delivery.Body,
+			); err != nil {
+				w.logger.Error(
+					"failed to process lab.stop",
 					"error", err,
 				)
 

@@ -225,7 +225,7 @@ func (h *LabSessionHandler) Stop(
 		return
 	}
 
-	err = h.labSessions.Stop(
+	err = h.labSessions.RequestStop(
 		c.Request.Context(),
 		labSessionID,
 		userID,

@@ -7,3 +7,8 @@ type LabCreate struct {
 	LabID        uuid.UUID `json:"lab_id"`
 	UserID       uuid.UUID `json:"user_id"`
 }
+
+type LabStop struct {
+	LabSessionID uuid.UUID `json:"lab_session_id"`
+	UserID       uuid.UUID `json:"user_id"`
+}

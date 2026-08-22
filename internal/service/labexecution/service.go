@@ -96,3 +96,41 @@ func (s *Service) Start(ctx context.Context, message job.LabCreate) error {
 
 	return nil
 }
+
+func (s *Service) StopRuntime(ctx context.Context, message job.LabStop) error {
+	labSession, err := s.labSessionService.GetById(
+		ctx,
+		message.LabSessionID,
+	)
+	if err != nil {
+		if errors.Is(err, labsession.ErrNotFound) {
+			return fmt.Errorf(
+				"lab session not found: %w",
+				err,
+			)
+		}
+
+		return err
+	}
+
+	if err := s.labRunner.Stop(
+		ctx,
+		labSession,
+	); err != nil {
+		return fmt.Errorf("stop lab environment: %w", err)
+	}
+
+	if err := s.labSessionService.MarkStopped(
+		ctx,
+		message.LabSessionID,
+	); err != nil {
+		return fmt.Errorf("mark lab session stopped: %w", err)
+	}
+
+	s.logger.Info(
+		"lab session is stopped",
+		"lab_session_id", message.LabSessionID,
+	)
+
+	return nil
+}

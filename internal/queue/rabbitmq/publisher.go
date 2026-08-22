@@ -15,9 +15,32 @@ func (c *Client) PublishCreate(
 	ctx context.Context,
 	job job.LabCreate,
 ) error {
-	body, err := json.Marshal(job)
+	return c.publishJSON(
+		ctx,
+		LabCreateQueue,
+		job,
+	)
+}
+
+func (c *Client) PublishStop(
+	ctx context.Context,
+	job job.LabStop,
+) error {
+	return c.publishJSON(
+		ctx,
+		LabStopQueue,
+		job,
+	)
+}
+
+func (c *Client) publishJSON(
+	ctx context.Context,
+	queue string,
+	message any,
+) error {
+	body, err := json.Marshal(message)
 	if err != nil {
-		return fmt.Errorf("marshal lab create job: %w", err)
+		return fmt.Errorf("marshal %s job: %w", queue, err)
 	}
 
 	c.mu.RLock()
@@ -30,10 +53,10 @@ func (c *Client) PublishCreate(
 
 	err = channel.PublishWithContext(
 		ctx,
-		"",             // default exchange
-		LabCreateQueue, // routing key == queue name
-		false,          // mandatory
-		false,          // immediate
+		"",    // default exchange
+		queue, // routing key == queue name
+		false, // mandatory
+		false, // immediate
 		amqp.Publishing{
 			ContentType:  "application/json",
 			DeliveryMode: amqp.Persistent,
@@ -41,7 +64,7 @@ func (c *Client) PublishCreate(
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("publish lab create job: %w", err)
+		return fmt.Errorf("publish %s job: %w", queue, err)
 	}
 
 	return nil

@@ -11,4 +11,9 @@ type LabJobPublisher interface {
 		ctx context.Context,
 		job job.LabCreate,
 	) error
+
+	PublishStop(
+		ctx context.Context,
+		job job.LabStop,
+	) error
 }

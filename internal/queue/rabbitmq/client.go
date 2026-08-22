@@ -9,6 +9,7 @@ import (
 )
 
 const LabCreateQueue = "lab.create"
+const LabStopQueue = "lab.stop"
 const maxReconnectDelay = 5 * time.Second
 
 type Client struct {
@@ -136,6 +137,18 @@ func (c *Client) declareQueues(channel *amqp.Channel) error {
 	)
 	if err != nil {
 		return fmt.Errorf("declare %s queue: %w", LabCreateQueue, err)
+	}
+
+	_, err = channel.QueueDeclare(
+		LabStopQueue,
+		true,  // durable
+		false, // autoDelete
+		false, // exclusive
+		false, // noWait
+		nil,
+	)
+	if err != nil {
+		return fmt.Errorf("declare %s queue: %w", LabStopQueue, err)
 	}
 
 	return nil

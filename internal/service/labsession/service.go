@@ -102,16 +102,31 @@ func (s *Service) ListForUser(
 	)
 }
 
-func (s *Service) Stop(
+func (s *Service) RequestStop(
 	ctx context.Context,
-	id uuid.UUID,
+	labSessionId uuid.UUID,
 	userID uuid.UUID,
 ) error {
-	return s.labSessionRepository.Stop(
+	if err := s.labSessionRepository.MarkStopping(
 		ctx,
-		id,
+		labSessionId,
 		userID,
+	); err != nil {
+		return err
+	}
+
+	err := s.publisher.PublishStop(
+		ctx,
+		job.LabStop{
+			LabSessionID: labSessionId,
+			UserID:       userID,
+		},
 	)
+	if err != nil {
+		return fmt.Errorf("publish lab stop job: %w", err)
+	}
+
+	return nil
 }
 
 func (s *Service) MarkProvisioning(
@@ -140,4 +155,11 @@ func (s *Service) GetById(
 	sessionId uuid.UUID,
 ) (labsession.Session, error) {
 	return s.labSessionRepository.GetByID(ctx, sessionId)
+}
+
+func (s *Service) MarkStopped(
+	ctx context.Context,
+	labSessionId uuid.UUID,
+) error {
+	return s.labSessionRepository.MarkStopped(ctx, labSessionId)
 }

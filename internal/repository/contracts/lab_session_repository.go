@@ -30,7 +30,7 @@ type LabSessionRepository interface {
 		userID uuid.UUID,
 	) ([]labsession.Session, error)
 
-	Stop(
+	MarkStopping(
 		ctx context.Context,
 		id uuid.UUID,
 		userID uuid.UUID,
@@ -46,5 +46,10 @@ type LabSessionRepository interface {
 		id uuid.UUID,
 		namespace string,
 		podName string,
+	) error
+
+	MarkStopped(
+		ctx context.Context,
+		id uuid.UUID,
 	) error
 }
