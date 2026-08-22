@@ -87,6 +87,7 @@ LAB_RUNNER_TYPE=kubernetes
 KUBECONFIG_PATH=C:\Users\<user-name>\.kube\config
 KUBERNETES_LAB_NAMESPACE=maxpetrikov-labs
 KUBERNETES_POD_READY_TIMEOUT=60s
+LAB_SESSION_EXPIRATION_CHECK=30s
 ```
 
 Run the worker in one terminal:
@@ -206,6 +207,43 @@ pending -> provisioning -> running
 
 The Bruno `Get Lab Session` response should include populated `namespace`,
 `pod_name`, and `started_at` fields after the worker finishes provisioning.
+
+## Verify expiration
+
+Lab sessions have two timeout protections:
+
+- Kubernetes gets `activeDeadlineSeconds` from `labs.timeout_minutes`.
+- The worker periodically checks expired active sessions every
+  `LAB_SESSION_EXPIRATION_CHECK`, deletes the runtime, and marks the session as
+  `expired`.
+
+To test expiration locally, temporarily set a low `timeout_minutes` for the demo
+lab and restart the worker:
+
+```powershell
+docker exec maxpetrikov-postgres `
+  psql -U max -d maxpetrikov `
+  -c "update labs set timeout_minutes = 1 where slug = 'linux-processes';"
+```
+
+Start a new lab session and wait until the timeout passes. Then verify:
+
+```powershell
+kubectl get pods -n maxpetrikov-labs
+```
+
+```powershell
+docker exec maxpetrikov-postgres `
+  psql -U max -d maxpetrikov `
+  -c "select id, status, namespace, pod_name, started_at, expires_at, finished_at from lab_sessions order by created_at desc limit 5;"
+```
+
+Expected result:
+
+- `status` becomes `expired`
+- `finished_at` is populated
+- the Kubernetes pod is deleted by the worker cleanup path or terminated by
+  Kubernetes deadline protection
 
 ## Stop the lab session
 

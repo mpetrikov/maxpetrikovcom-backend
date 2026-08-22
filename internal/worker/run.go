@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 func (w *Worker) Run() error {
@@ -41,11 +42,24 @@ func (w *Worker) Run() error {
 
 	w.logger.Info("worker started")
 
+	expirationTicker := time.NewTicker(
+		w.config.LabSessionExpirationCheck,
+	)
+	defer expirationTicker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			w.logger.Info("worker shutdown signal received")
 			return nil
+
+		case <-expirationTicker.C:
+			if err := w.handleLabSessionExpiration(ctx); err != nil {
+				w.logger.Error(
+					"failed to expire overdue lab sessions",
+					"error", err,
+				)
+			}
 
 		case delivery, ok := <-labCreateDeliveries:
 			if !ok {

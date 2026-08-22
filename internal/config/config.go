@@ -29,6 +29,7 @@ type Config struct {
 	KubeconfigPath            string
 	KubernetesLabNamespace    string
 	KubernetesPodReadyTimeout time.Duration
+	LabSessionExpirationCheck time.Duration
 
 	ShutdownTimeout time.Duration
 }
@@ -64,6 +65,21 @@ func Load() (Config, error) {
 		)
 	}
 
+	labSessionExpirationCheck, err := time.ParseDuration(
+		getEnv("LAB_SESSION_EXPIRATION_CHECK", "30s"),
+	)
+	if err != nil {
+		return Config{}, fmt.Errorf(
+			"parse LAB_SESSION_EXPIRATION_CHECK: %w",
+			err,
+		)
+	}
+	if labSessionExpirationCheck <= 0 {
+		return Config{}, fmt.Errorf(
+			"LAB_SESSION_EXPIRATION_CHECK must be positive",
+		)
+	}
+
 	labRunnerType := getEnv("LAB_RUNNER_TYPE", LabRunnerTypeFake)
 	if labRunnerType != LabRunnerTypeFake &&
 		labRunnerType != LabRunnerTypeKubernetes {
@@ -93,6 +109,7 @@ func Load() (Config, error) {
 		KubeconfigPath:            getEnv("KUBECONFIG_PATH", getEnv("KUBECONFIG", "")),
 		KubernetesLabNamespace:    getEnv("KUBERNETES_LAB_NAMESPACE", "maxpetrikov-labs"),
 		KubernetesPodReadyTimeout: kubernetesPodReadyTimeout,
+		LabSessionExpirationCheck: labSessionExpirationCheck,
 
 		ShutdownTimeout: 10 * time.Second,
 	}, nil

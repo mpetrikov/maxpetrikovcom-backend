@@ -102,6 +102,18 @@ func (s *Service) ListForUser(
 	)
 }
 
+func (s *Service) ListExpiredActive(
+	ctx context.Context,
+	now time.Time,
+	limit int,
+) ([]labsession.Session, error) {
+	return s.labSessionRepository.ListExpiredActive(
+		ctx,
+		now,
+		limit,
+	)
+}
+
 func (s *Service) RequestStop(
 	ctx context.Context,
 	labSessionId uuid.UUID,
@@ -162,4 +174,11 @@ func (s *Service) MarkStopped(
 	labSessionId uuid.UUID,
 ) error {
 	return s.labSessionRepository.MarkStopped(ctx, labSessionId)
+}
+
+func (s *Service) MarkExpired(
+	ctx context.Context,
+	labSessionId uuid.UUID,
+) error {
+	return s.labSessionRepository.MarkExpired(ctx, labSessionId)
 }

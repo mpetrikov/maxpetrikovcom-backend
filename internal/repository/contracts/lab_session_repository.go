@@ -2,6 +2,7 @@ package contracts
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -30,6 +31,12 @@ type LabSessionRepository interface {
 		userID uuid.UUID,
 	) ([]labsession.Session, error)
 
+	ListExpiredActive(
+		ctx context.Context,
+		now time.Time,
+		limit int,
+	) ([]labsession.Session, error)
+
 	MarkStopping(
 		ctx context.Context,
 		id uuid.UUID,
@@ -49,6 +56,11 @@ type LabSessionRepository interface {
 	) error
 
 	MarkStopped(
+		ctx context.Context,
+		id uuid.UUID,
+	) error
+
+	MarkExpired(
 		ctx context.Context,
 		id uuid.UUID,
 	) error

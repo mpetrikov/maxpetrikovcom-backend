@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -249,6 +250,78 @@ func (r *LabSessionRepository) ListByUserID(
 	return sessions, nil
 }
 
+func (r *LabSessionRepository) ListExpiredActive(
+	ctx context.Context,
+	now time.Time,
+	limit int,
+) ([]labsession.Session, error) {
+	rows, err := r.db.Query(
+		ctx,
+		`
+		SELECT
+			id,
+			lab_id,
+			user_id,
+			status,
+			namespace,
+			pod_name,
+			created_at,
+			started_at,
+			expires_at,
+			finished_at,
+			failure_reason
+		FROM lab_sessions
+		WHERE expires_at <= $1
+		  AND status IN ($3, $4, $5, $6)
+		ORDER BY expires_at ASC
+		LIMIT $2
+		`,
+		now,
+		limit,
+		labsession.StatusPending,
+		labsession.StatusProvisioning,
+		labsession.StatusRunning,
+		labsession.StatusStopping,
+	)
+	if err != nil {
+		return nil,
+			fmt.Errorf("list expired active lab sessions: %w", err)
+	}
+	defer rows.Close()
+
+	sessions := make([]labsession.Session, 0)
+
+	for rows.Next() {
+		var session labsession.Session
+
+		if err := rows.Scan(
+			&session.ID,
+			&session.LabID,
+			&session.UserID,
+			&session.Status,
+			&session.Namespace,
+			&session.PodName,
+			&session.CreatedAt,
+			&session.StartedAt,
+			&session.ExpiresAt,
+			&session.FinishedAt,
+			&session.FailureReason,
+		); err != nil {
+			return nil,
+				fmt.Errorf("scan expired active lab session: %w", err)
+		}
+
+		sessions = append(sessions, session)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil,
+			fmt.Errorf("iterate expired active lab sessions: %w", err)
+	}
+
+	return sessions, nil
+}
+
 func (r *LabSessionRepository) MarkStopping(
 	ctx context.Context,
 	labSessionId uuid.UUID,
@@ -369,6 +442,41 @@ func (r *LabSessionRepository) MarkStopped(
 	if err != nil {
 		return fmt.Errorf(
 			"mark lab session stopped: %w",
+			err,
+		)
+	}
+
+	if tag.RowsAffected() == 0 {
+		return labsession.ErrNotFound
+	}
+
+	return nil
+}
+
+func (r *LabSessionRepository) MarkExpired(
+	ctx context.Context,
+	labSessionId uuid.UUID,
+) error {
+	tag, err := r.db.Exec(
+		ctx,
+		`
+		UPDATE lab_sessions
+		SET
+			status = $2,
+			finished_at = COALESCE(finished_at, NOW())
+		WHERE id = $1
+		  AND status IN ($2, $3, $4, $5, $6)
+		`,
+		labSessionId,
+		labsession.StatusExpired,
+		labsession.StatusPending,
+		labsession.StatusProvisioning,
+		labsession.StatusRunning,
+		labsession.StatusStopping,
+	)
+	if err != nil {
+		return fmt.Errorf(
+			"mark lab session expired: %w",
 			err,
 		)
 	}
