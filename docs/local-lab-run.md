@@ -245,6 +245,24 @@ Expected result:
 - the Kubernetes pod is deleted by the worker cleanup path or terminated by
   Kubernetes deadline protection
 
+## Verify start failure
+
+To test minimum failure handling locally, temporarily set an invalid image for the demo lab and start a new session:
+
+```powershell
+docker exec maxpetrikov-postgres `
+  psql -U max -d maxpetrikov `
+  -c "update labs set image = 'invalid.local/missing-lab-image:dev' where slug = 'linux-processes';"
+```
+
+Expected result:
+
+- worker attempts to start the Kubernetes Pod
+- any partially created Pod is deleted
+- session becomes `failed`
+- `failure_reason` is populated
+- the `lab.create` message is ACKed as a terminal error instead of being requeued forever
+
 ## Stop the lab session
 
 Run:

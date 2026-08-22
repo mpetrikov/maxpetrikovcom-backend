@@ -487,3 +487,41 @@ func (r *LabSessionRepository) MarkExpired(
 
 	return nil
 }
+
+func (r *LabSessionRepository) MarkFailed(
+	ctx context.Context,
+	labSessionId uuid.UUID,
+	reason string,
+) error {
+	tag, err := r.db.Exec(
+		ctx,
+		`
+		UPDATE lab_sessions
+		SET
+			status = $2,
+			failure_reason = $3,
+			finished_at = COALESCE(finished_at, NOW())
+		WHERE id = $1
+		  AND status IN ($2, $4, $5, $6, $7)
+		`,
+		labSessionId,
+		labsession.StatusFailed,
+		reason,
+		labsession.StatusPending,
+		labsession.StatusProvisioning,
+		labsession.StatusRunning,
+		labsession.StatusStopping,
+	)
+	if err != nil {
+		return fmt.Errorf(
+			"mark lab session failed: %w",
+			err,
+		)
+	}
+
+	if tag.RowsAffected() == 0 {
+		return labsession.ErrNotFound
+	}
+
+	return nil
+}

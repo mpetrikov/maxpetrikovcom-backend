@@ -7,6 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/labexecution"
 )
 
 func (w *Worker) Run() error {
@@ -72,6 +74,17 @@ func (w *Worker) Run() error {
 				ctx,
 				delivery.Body,
 			); err != nil {
+				if labexecution.IsTerminalError(err) {
+					w.logger.Error(
+						"terminal lab.create processing error",
+						"error", err,
+					)
+
+					_ = delivery.Ack(false)
+
+					continue
+				}
+
 				w.logger.Error(
 					"failed to process lab.create",
 					"error", err,
@@ -98,6 +111,17 @@ func (w *Worker) Run() error {
 				ctx,
 				delivery.Body,
 			); err != nil {
+				if labexecution.IsTerminalError(err) {
+					w.logger.Error(
+						"terminal lab.stop processing error",
+						"error", err,
+					)
+
+					_ = delivery.Ack(false)
+
+					continue
+				}
+
 				w.logger.Error(
 					"failed to process lab.stop",
 					"error", err,

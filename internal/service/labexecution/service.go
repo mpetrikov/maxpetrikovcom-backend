@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/job"
+	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/lab"
 	"github.com/maxpetrikov/maxpetrikovcom-backend/internal/domain/labsession"
 	runnercontracts "github.com/maxpetrikov/maxpetrikovcom-backend/internal/runner/contracts"
 	labservice "github.com/maxpetrikov/maxpetrikovcom-backend/internal/service/lab"
@@ -40,37 +41,15 @@ func NewService(
 }
 
 func (s *Service) Start(ctx context.Context, message job.LabCreate) error {
-	if err := s.labSessionService.MarkProvisioning(
-		ctx,
-		message.LabSessionID,
-	); err != nil {
-		if errors.Is(err, labsession.ErrNotFound) {
-			if s.isLabCreateAlreadySettled(ctx, message.LabSessionID) {
-				return nil
-			}
-
-			return fmt.Errorf(
-				"lab session not pending or not found: %w",
-				err,
-			)
-		}
-
-		return err
-	}
-
-	labSession, err := s.labSessionService.GetById(
+	labSession, ok, err := s.getStartableSession(
 		ctx,
 		message.LabSessionID,
 	)
 	if err != nil {
-		if errors.Is(err, labsession.ErrNotFound) {
-			return fmt.Errorf(
-				"lab session not pending or not found: %w",
-				err,
-			)
-		}
-
 		return err
+	}
+	if !ok {
+		return nil
 	}
 
 	if isExpired(labSession, time.Now()) {
@@ -97,30 +76,21 @@ func (s *Service) Start(ctx context.Context, message job.LabCreate) error {
 		return fmt.Errorf("find lab: %w", err)
 	}
 
-	startResult, err := s.labRunner.Start(
+	startResult, err := s.startRuntime(
 		ctx,
 		labSession,
 		currentLab,
+		message.LabSessionID,
 	)
 	if err != nil {
-		return fmt.Errorf("start lab environment: %w", err)
+		return err
 	}
 
-	if err := s.labSessionService.MarkRunning(
+	return s.markRunning(
 		ctx,
 		message.LabSessionID,
-		startResult.Namespace,
-		startResult.PodName,
-	); err != nil {
-		return fmt.Errorf("mark lab session running: %w", err)
-	}
-
-	s.logger.Info(
-		"lab session is running",
-		"lab_session_id", message.LabSessionID,
+		startResult,
 	)
-
-	return nil
 }
 
 func (s *Service) isLabCreateAlreadySettled(
@@ -152,6 +122,111 @@ func (s *Service) isLabCreateAlreadySettled(
 	default:
 		return false
 	}
+}
+
+func (s *Service) getStartableSession(
+	ctx context.Context,
+	labSessionID uuid.UUID,
+) (labsession.Session, bool, error) {
+	if err := s.labSessionService.MarkProvisioning(
+		ctx,
+		labSessionID,
+	); err != nil {
+		if errors.Is(err, labsession.ErrNotFound) {
+			if s.isLabCreateAlreadySettled(ctx, labSessionID) {
+				return labsession.Session{}, false, nil
+			}
+
+			return labsession.Session{}, false, fmt.Errorf(
+				"lab session not pending or not found: %w",
+				err,
+			)
+		}
+
+		return labsession.Session{}, false, err
+	}
+
+	labSession, err := s.labSessionService.GetById(
+		ctx,
+		labSessionID,
+	)
+	if err != nil {
+		if errors.Is(err, labsession.ErrNotFound) {
+			return labsession.Session{}, false, fmt.Errorf(
+				"lab session not pending or not found: %w",
+				err,
+			)
+		}
+
+		return labsession.Session{}, false, err
+	}
+
+	return labSession, true, nil
+}
+
+func (s *Service) startRuntime(
+	ctx context.Context,
+	labSession labsession.Session,
+	currentLab lab.Lab,
+	labSessionID uuid.UUID,
+) (runnercontracts.StartResult, error) {
+	startResult, err := s.labRunner.Start(
+		ctx,
+		labSession,
+		currentLab,
+	)
+	if err == nil {
+		return startResult, nil
+	}
+
+	startErr := fmt.Errorf("start lab environment: %w", err)
+
+	if stopErr := s.labRunner.Stop(
+		ctx,
+		labSession,
+	); stopErr != nil {
+		return runnercontracts.StartResult{}, fmt.Errorf(
+			"cleanup failed lab environment after start error: %w: %v",
+			stopErr,
+			startErr,
+		)
+	}
+
+	if markErr := s.labSessionService.MarkFailed(
+		ctx,
+		labSessionID,
+		startErr.Error(),
+	); markErr != nil {
+		return runnercontracts.StartResult{}, fmt.Errorf(
+			"mark lab session failed after start error: %w: %v",
+			markErr,
+			startErr,
+		)
+	}
+
+	return runnercontracts.StartResult{}, NewTerminalError(startErr)
+}
+
+func (s *Service) markRunning(
+	ctx context.Context,
+	labSessionID uuid.UUID,
+	startResult runnercontracts.StartResult,
+) error {
+	if err := s.labSessionService.MarkRunning(
+		ctx,
+		labSessionID,
+		startResult.Namespace,
+		startResult.PodName,
+	); err != nil {
+		return fmt.Errorf("mark lab session running: %w", err)
+	}
+
+	s.logger.Info(
+		"lab session is running",
+		"lab_session_id", labSessionID,
+	)
+
+	return nil
 }
 
 func (s *Service) ExpireSessions(ctx context.Context) error {

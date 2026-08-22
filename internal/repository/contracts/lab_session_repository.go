@@ -64,4 +64,10 @@ type LabSessionRepository interface {
 		ctx context.Context,
 		id uuid.UUID,
 	) error
+
+	MarkFailed(
+		ctx context.Context,
+		id uuid.UUID,
+		reason string,
+	) error
 }

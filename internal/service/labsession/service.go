@@ -19,6 +19,8 @@ type Service struct {
 	publisher            queuecontracts.LabJobPublisher
 }
 
+const maxFailureReasonLength = 2000
+
 func NewService(
 	labs repositorycontracts.LabRepository,
 	labSessionRepository repositorycontracts.LabSessionRepository,
@@ -181,4 +183,25 @@ func (s *Service) MarkExpired(
 	labSessionId uuid.UUID,
 ) error {
 	return s.labSessionRepository.MarkExpired(ctx, labSessionId)
+}
+
+func (s *Service) MarkFailed(
+	ctx context.Context,
+	labSessionId uuid.UUID,
+	reason string,
+) error {
+	return s.labSessionRepository.MarkFailed(
+		ctx,
+		labSessionId,
+		truncateFailureReason(reason),
+	)
+}
+
+func truncateFailureReason(reason string) string {
+	runes := []rune(reason)
+	if len(runes) <= maxFailureReasonLength {
+		return reason
+	}
+
+	return string(runes[:maxFailureReasonLength])
 }
